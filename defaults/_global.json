@@ -1,0 +1,22 @@
+{
+  "store": {
+    "name": "Example Store",
+    "domain_name": "example-store.mybigcommerce.com",
+    "logo": {
+      "title": "Example Store",
+      "name": "logo.png",
+      "url": ""
+    },
+    "ssl_path": "https://example-store.mybigcommerce.com",
+    "path_normal": "https://example-store.mybigcommerce.com",
+    "path": "https://example-store.mybigcommerce.com",
+    "address": "123 Example Street, Austin, TX 78701",
+    "language": { "code": "en", "direction": "ltr" }
+  },
+  "customer": {
+    "first_name": "Jordan",
+    "full_name": "Jordan Rivera",
+    "email": "jordan@example.com"
+  },
+  "misc": { "year": 2026 }
+}

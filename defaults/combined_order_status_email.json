@@ -1,0 +1,42 @@
+{
+  "order": {
+    "id": 1042,
+    "new_status": "Shipped",
+    "new_formatted_status": "Shipped",
+    "total": { "value": 86.5, "formatted": "$86.50" },
+    "refund": { "value": 0, "formatted": null },
+    "date_placed": { "value": 1790985600, "formatted": "10/03/2026" },
+    "payment_method": "Credit Card",
+    "link": "#order-status",
+    "customer_name": "Jordan Rivera",
+    "products": [
+      {
+        "name": "Canvas Tote Bag",
+        "sku": "TOTE-NAT",
+        "price": "$32.00",
+        "quantity": 2,
+        "thumbnail": "",
+        "brand": "Example Brand",
+        "attribute_lines": [{ "name": "Color", "value": "Natural" }]
+      }
+    ],
+    "unshipped_products": [
+      {
+        "name": "Enamel Mug",
+        "sku": "MUG-BLU",
+        "price": "$22.50",
+        "quantity": 1,
+        "thumbnail": "",
+        "brand": "Example Brand",
+        "attribute_lines": []
+      }
+    ],
+    "downloadable_products": [],
+    "ready_for_pickup_products": [],
+    "picked_up_products": [],
+    "pickup_methods": [],
+    "tracking": [
+      { "id": "1Z999AA10123456784", "shipping_method": "UPS Ground", "link": "#tracking" }
+    ]
+  }
+}

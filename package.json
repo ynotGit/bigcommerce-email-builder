@@ -1,0 +1,35 @@
+{
+  "name": "bc-email-builder",
+  "version": "0.11.0",
+  "description": "Edit BigCommerce transactional email templates locally with live preview, then publish them through the Email Templates API.",
+  "type": "module",
+  "bin": {
+    "email-builder": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "assets",
+    "defaults",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepare": "npm run build",
+    "test": "npm run build && node test/smoke.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "caniemail": "^2.0.2",
+    "handlebars": "^4.7.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.5.0"
+  },
+  "license": "MIT"
+}

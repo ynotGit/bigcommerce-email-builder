@@ -1,0 +1,135 @@
+// Builds preview data in the shape of BigCommerce's email objects (see types.ts).
+import fs from 'node:fs';
+import path from 'node:path';
+import { bc } from './api.js';
+import { PACKAGE_ROOT } from './config.js';
+import type { Config, EmailProduct, V2Store, V3Product, V3Variant } from './types.js';
+
+const defaultsDir = path.join(PACKAGE_ROOT, 'defaults');
+
+function writeJson(file: string, data: unknown): void {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `${JSON.stringify(data, null, 2)}\n`);
+}
+
+/** Gives every template something to render against. Returns the files it created. */
+export function ensureDefaultFixtures(config: Config, typeIds: string[]): string[] {
+  const created: string[] = [];
+  const globalFile = path.join(config.fixturesDir, '_global.json');
+  if (!fs.existsSync(globalFile)) {
+    fs.mkdirSync(config.fixturesDir, { recursive: true });
+    fs.copyFileSync(path.join(defaultsDir, '_global.json'), globalFile);
+    created.push('fixtures/_global.json');
+  }
+  for (const typeId of typeIds) {
+    const file = path.join(config.fixturesDir, typeId, 'default.json');
+    if (fs.existsSync(file)) continue;
+    const shipped = path.join(defaultsDir, `${typeId}.json`);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    if (fs.existsSync(shipped)) fs.copyFileSync(shipped, file);
+    else fs.writeFileSync(file, '{}\n');
+    created.push(`fixtures/${typeId}/default.json`);
+  }
+  return created;
+}
+
+function money(amount: string | number | undefined, currency: string | undefined): string {
+  const value = Number(amount) || 0;
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(value);
+  } catch {
+    return value.toFixed(2);
+  }
+}
+
+/** Only used for the store's currency, so product prices are formatted correctly. */
+async function fetchStore(config: Config): Promise<V2Store> {
+  const store = await bc<V2Store>(config, '/v2/store');
+  if (!store) throw new Error('The store information request came back empty.');
+  return store;
+}
+
+/** Looks a SKU up in the catalog: first as a product SKU, then as a variant SKU. */
+async function productForSku(config: Config, sku: string, currency: string, brands: Map<number, string>): Promise<{ line: EmailProduct; value: number }> {
+  const byProduct = await bc<{ data?: V3Product[] }>(config, '/v3/catalog/products', {
+    query: { sku, include: 'primary_image' },
+  });
+  let product = byProduct?.data?.find((p) => p.sku === sku);
+  let variant: V3Variant | undefined;
+  if (!product) {
+    const byVariant = await bc<{ data?: V3Variant[] }>(config, '/v3/catalog/variants', { query: { sku } });
+    variant = byVariant?.data?.find((v) => v.sku === sku);
+    if (!variant) throw new Error(`No product or variant in this store's catalog has the SKU "${sku}".`);
+    const parent = await bc<{ data?: V3Product }>(config, `/v3/catalog/products/${variant.product_id}`, {
+      query: { include: 'primary_image' },
+    });
+    product = parent?.data;
+    if (!product) throw new Error(`The product for SKU "${sku}" could not be loaded.`);
+  }
+
+  let brand = '';
+  if (product.brand_id) {
+    if (!brands.has(product.brand_id)) {
+      const res = await bc<{ data?: { name?: string } }>(config, `/v3/catalog/brands/${product.brand_id}`);
+      brands.set(product.brand_id, res?.data?.name ?? '');
+    }
+    brand = brands.get(product.brand_id) ?? '';
+  }
+
+  const value = Number(variant?.calculated_price ?? variant?.price ?? product.calculated_price ?? product.price) || 0;
+  return {
+    value,
+    line: {
+      name: product.name,
+      sku,
+      price: money(value, currency),
+      quantity: 1,
+      thumbnail: variant?.image_url || product.primary_image?.url_thumbnail || product.primary_image?.url_standard || '',
+      brand,
+      attribute_lines: (variant?.option_values ?? []).map((o) => ({ name: o.option_display_name, value: o.label })),
+    },
+  };
+}
+
+interface SkuFixtureOptions {
+  typeId?: string;
+  name?: string;
+}
+
+type Json = Record<string, unknown>;
+const isObject = (value: unknown): value is Json => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+/**
+ * Builds preview data that shows real catalog products in an otherwise made-up
+ * order. Only product data is read from the store; the customer stays the
+ * sample one from the default fixture.
+ */
+export async function buildSkuFixture(config: Config, skus: string[], options: SkuFixtureOptions = {}): Promise<{ file: string; products: EmailProduct[] }> {
+  const typeId = options.typeId ?? 'combined_order_status_email';
+  const currency = (await fetchStore(config)).currency || 'USD';
+  const brands = new Map<number, string>();
+  const products: EmailProduct[] = [];
+  let total = 0;
+  for (const sku of skus) {
+    const { line, value } = await productForSku(config, sku, currency, brands);
+    products.push(line);
+    total += value * line.quantity;
+  }
+
+  // Start from the template's existing sample data so everything else stays filled in.
+  const dir = path.join(config.fixturesDir, typeId);
+  const base = [path.join(dir, 'default.json'), path.join(defaultsDir, `${typeId}.json`)].find((f) => fs.existsSync(f));
+  const data = base ? (JSON.parse(fs.readFileSync(base, 'utf8')) as Json) : {};
+  const order: Json = isObject(data.order) ? data.order : {};
+  data.order = {
+    ...order,
+    products,
+    unshipped_products: [],
+    downloadable_products: [],
+    total: { value: total, formatted: money(total, currency) },
+  };
+
+  const file = path.join(dir, `${options.name || 'products'}.json`);
+  writeJson(file, data);
+  return { file, products };
+}
