@@ -7,7 +7,7 @@ and publish them to your store.
 
 Needs Node 22 or newer.
 
-    npm install -g github:YOUR_USER/bc-email-builder
+    npm install -g github:ynotGit/bc-email-builder
 
 ## First time
 
