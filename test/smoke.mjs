@@ -54,7 +54,11 @@ const api = http.createServer((req, res) => {
     });
     return undefined;
   }
-  if (p === '/v2/store') return send({ name: 'Mock Store', domain: 'mock.example', secure_url: 'https://mock.example', logo: { url: 'https://mock.example/logo.png' }, address: '1 Mock St', language: 'en', currency: 'GBP' });
+  if (p === '/v2/store') {
+    return send(store === 'stagehash'
+      ? { name: 'Stage Store', domain: 'stage.example', secure_url: 'https://stage.example', logo: [], address: '', language: 'en', currency: 'GBP' }
+      : { name: 'Mock Store', domain: 'mock.example', secure_url: 'https://mock.example', logo: { url: 'https://mock.example/logo.png?t=1' }, address: '1 Mock St\nMockville', language: 'en', currency: 'GBP' });
+  }
   // catalog: one SKU that is a product, one that is a variant of another product
   const tote = { id: 5, name: 'Tote', sku: 'T1', price: 20, calculated_price: 18.5, brand_id: 3, primary_image: { url_thumbnail: 'https://cdn.example/tote.jpg' } };
   const shirt = { id: 6, name: 'Shirt', sku: 'SHIRT', price: 30, primary_image: { url_thumbnail: 'https://cdn.example/shirt.jpg' } };
@@ -212,9 +216,35 @@ try {
   assert.equal(puts.at(-1).query, '?channel_id=12');
   assert.equal(puts.at(-1).body.subject, 'Channel subject');
 
-  // the store-details fixture command is gone; the shared sample data stays as shipped
-  assert.match(await fails('fixture', 'store'), /The only fixture command is "email-builder fixture sku"/);
-  assert.equal(JSON.parse(fs.readFileSync(path.join(ws, 'fixtures', '_global.json'))).store.name, 'Example Store');
+  // the store's own name and logo replace the sample store; the rest of the shared data is kept
+  const globalFile = path.join(ws, 'fixtures', '_global.json');
+  const shipped = JSON.parse(fs.readFileSync(globalFile));
+  assert.equal(shipped.store.name, 'Example Store');
+  fs.writeFileSync(globalFile, JSON.stringify({ ...shipped, store: { ...shipped.store, mine: 'kept' } }));
+  out = await run('fixture', 'store');
+  assert.match(out, /name {5}Mock Store\n {2}domain {3}mock\.example\n {2}logo {5}https:\/\/mock\.example\/logo\.png\?t=1\n {2}address {2}1 Mock St, Mockville/);
+  assert.match(out, /Wrote theme-emails\/fixtures\/_global\.json\nEvery preview now shows the default environment's store/);
+  const pulled = JSON.parse(fs.readFileSync(globalFile));
+  assert.deepEqual(pulled.store, {
+    ...shipped.store,
+    name: 'Mock Store',
+    domain_name: 'mock.example',
+    logo: { title: 'Mock Store', name: 'logo.png', url: 'https://mock.example/logo.png?t=1' },
+    ssl_path: 'https://mock.example',
+    path_normal: 'https://mock.example',
+    path: 'https://mock.example',
+    address: '1 Mock St\nMockville',
+    mine: 'kept',
+  });
+  assert.deepEqual(pulled.customer, shipped.customer, 'the customer stays sample data');
+  // a store with no logo leaves the URL empty, so templates fall back to the store name
+  await run('fixture', 'store', '--env', 'staging');
+  assert.deepEqual(JSON.parse(fs.readFileSync(globalFile)).store.logo, { title: 'Stage Store', name: '', url: '' });
+  fs.writeFileSync(globalFile, '{ not json');
+  assert.match(await fails('fixture', 'store'), /fixtures\/_global\.json is not valid JSON/);
+  fs.rmSync(globalFile);
+  await run('fixture', 'store');
+  assert.equal(JSON.parse(fs.readFileSync(globalFile)).customer.full_name, 'Jordan Rivera', 'a missing file starts from the shipped sample');
   // real catalog products by SKU, in an otherwise sample order
   assert.match(await fails('fixture', 'sku'), /No SKUs to look up\. Add a list to theme-emails\/email-builder\.json/);
   // the team's saved list is the normal source; numbers, blanks and repeats are tidied
@@ -231,7 +261,7 @@ try {
   fs.writeFileSync(path.join(ws, 'email-builder.json'), JSON.stringify({ skus: ['T1', 'NOPE'] }));
   assert.match(await fails('fixture', 'sku', '--name', 'broken'), /No product or variant in this store's catalog has the SKU "NOPE"/);
   assert.ok(!fs.existsSync(path.join(ws, 'fixtures', 'combined_order_status_email', 'broken.json')), 'nothing is written when a SKU is missing');
-  assert.match(await fails('fixture', 'order', '77'), /The only fixture command is "email-builder fixture sku"/);
+  assert.match(await fails('fixture', 'order', '77'), /The fixture commands are "email-builder fixture sku" and "email-builder fixture store"/);
   fs.writeFileSync(path.join(ws, 'email-builder.json'), JSON.stringify({ skus: 'T1' }));
   assert.match(await fails('fixture', 'sku'), /"skus" in email-builder\.json must be a list/);
   // SKUs cannot be set on the command line
@@ -239,7 +269,7 @@ try {
   r = await renderEmail(config, { typeId: 'combined_order_status_email', fixture: 'products' });
   assert.match(r.html, /Hi Jordan Rivera/);
   assert.match(r.html, /Tote x1 \(T1\)/);
-  assert.match(r.html, /Example Store/);
+  assert.match(r.html, /Mock Store/);
   // privacy: the tool never asks the store for orders or customers
   assert.ok(requests.length > 20);
   assert.deepEqual(requests.filter((path) => /orders|customers/.test(path)), []);

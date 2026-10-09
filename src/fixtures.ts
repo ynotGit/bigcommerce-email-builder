@@ -42,7 +42,7 @@ function money(amount: string | number | undefined, currency: string | undefined
   }
 }
 
-/** Only used for the store's currency, so product prices are formatted correctly. */
+/** The store's own details: its currency for product prices, its name and logo for "fixture store". */
 async function fetchStore(config: Config): Promise<V2Store> {
   const store = await bc<V2Store>(config, '/v2/store');
   if (!store) throw new Error('The store information request came back empty.');
@@ -132,4 +132,47 @@ export async function buildSkuFixture(config: Config, skus: string[], options: S
   const file = path.join(dir, `${options.name || 'products'}.json`);
   writeJson(file, data);
   return { file, products };
+}
+
+export interface StoreSummary {
+  name: string;
+  domain: string;
+  logo: string;
+  address: string;
+}
+
+/**
+ * Replaces the sample store in _global.json with the selected environment's
+ * real one, so the preview shows the store's own name and logo. The rest of
+ * the file (the sample customer, anything added by hand) is kept.
+ */
+export async function buildStoreFixture(config: Config): Promise<{ file: string; store: StoreSummary }> {
+  const remote = await fetchStore(config);
+  const file = path.join(config.fixturesDir, '_global.json');
+  let data: Json;
+  try {
+    data = JSON.parse(fs.readFileSync(fs.existsSync(file) ? file : path.join(defaultsDir, '_global.json'), 'utf8')) as Json;
+  } catch (err) {
+    throw new Error(`fixtures/_global.json is not valid JSON: ${(err as Error).message}`);
+  }
+  const current: Json = isObject(data.store) ? data.store : {};
+
+  const name = remote.name ?? '';
+  const domain = remote.domain ?? '';
+  const logo = (isObject(remote.logo) && typeof remote.logo.url === 'string' && remote.logo.url) || '';
+  const address = remote.address ?? '';
+  const url = remote.secure_url || (domain ? `https://${domain}` : '');
+  data.store = {
+    ...current,
+    name,
+    domain_name: domain,
+    // With no logo the URL is left empty, and templates fall back to the store name as they do in a real email
+    logo: { title: name, name: logo.split('?')[0]?.split('/').pop() ?? '', url: logo },
+    ssl_path: url,
+    path_normal: url,
+    path: url,
+    address,
+  };
+  writeJson(file, data);
+  return { file, store: { name, domain, logo, address } };
 }

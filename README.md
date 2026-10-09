@@ -55,6 +55,7 @@ another store without switching, add `--env production`.
 | Check for HTML and CSS that email clients do not support | `email-builder lint` |
 | See which emails differ from the store | `email-builder status` |
 | Show real products in the preview | Add `{ "skus": ["TOTE-NAT"] }` to `theme-emails/email-builder.json`, then `email-builder fixture sku` |
+| Show your store's name and logo in the preview | `email-builder fixture store` |
 
 ## Good to know
 
@@ -62,8 +63,9 @@ another store without switching, add `--env production`.
   orders or customers from your store.
 - A teammate joining the project runs the same `setup` command to add their
   own credentials.
-- The API token needs access to email templates. For `fixture sku` it also
-  needs read access to products and store information (for the currency).
+- The API token needs access to email templates. `fixture sku` also needs
+  read access to products and store information (for the currency);
+  `fixture store` needs store information.
 
 Everything else (all commands and options, settings, make targets, how the
 preview differs from a real email) is in [docs/REFERENCE.md](docs/REFERENCE.md).

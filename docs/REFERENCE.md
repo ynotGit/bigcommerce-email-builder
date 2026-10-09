@@ -27,6 +27,7 @@ The [README](../README.md) covers the everyday flow. This page has the detail.
 | `lint [template...]` | Flags unsupported HTML and CSS. Exits non-zero if it finds any, so CI can use it. `--partial` also lists features that only partly work. |
 | `create <template>` | Downloads one template. `--all` downloads every one. With no name it lists what the store has. Keeps local edits unless you pass `--force`. |
 | `fixture sku` | Builds preview data with the products in the `skus` list. `--template` targets another email; `--name` sets the file name. |
+| `fixture store` | Puts the store's own name, logo, domain and address into the preview data every email shares. |
 | `init` | Sets up a single environment called `default`. `setup` does this and more. |
 
 A template is named by its type ID (`combined_order_status_email`). A path to
@@ -116,18 +117,23 @@ Starter fixtures ship for `combined_order_status_email` and
 `account_reset_password_email`. Other emails start with an empty fixture to
 fill in from that reference.
 
-The customer, order number, tracking details and store name are made up. To
-show your own store name or logo in the preview, edit `fixtures/_global.json`
-by hand.
+The customer, order number, tracking details and store name are made up.
 
-One command adds real, non-personal data:
+Two commands add real, non-personal data:
 
 - `fixture sku` looks up each SKU in the selected environment's catalog and
   writes `products.json`, one line item per SKU, quantity 1, total the sum of
   the prices. Choose "products" under Preview data to see it.
+- `fixture store` reads the selected environment's store profile and writes
+  its name, logo, domain and address into `_global.json`. The sample customer
+  and anything you added by hand stay. A store with no logo gets an empty logo
+  URL, so templates fall back to the store name as they do in a real email.
+  `_global.json` is shared by every environment, so it shows the store you
+  last ran this against.
 
 The preview never contacts the store. It reads these files, so rerun
-`fixture sku` when the list, prices or images change.
+`fixture sku` when the list, prices or images change, and `fixture store`
+when the logo or store details do.
 
 ## How the preview differs from a real email
 

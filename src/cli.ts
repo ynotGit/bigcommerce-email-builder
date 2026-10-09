@@ -6,7 +6,7 @@ import { listRemoteTemplates, putRemoteTemplate } from './api.js';
 import {
   BODY_LIMIT, DEFAULT_ENV, PACKAGE_ROOT, WORKSPACE_DIR, display, envFilePath, listEnvNames, loadConfig, resolveWorkspace, selectedEnvName,
 } from './config.js';
-import { buildSkuFixture, ensureDefaultFixtures } from './fixtures.js';
+import { buildSkuFixture, buildStoreFixture, ensureDefaultFixtures } from './fixtures.js';
 import { env } from './env.js';
 import { init, saveEnvironment } from './init.js';
 import { lintTemplate, readLintSettings, summariseClients } from './lint.js';
@@ -30,6 +30,7 @@ Extras
   status                   List templates that differ from the store
   lint                     Flag HTML and CSS that email clients do not support
   fixture sku              Show the products from your "skus" list in the preview
+  fixture store            Show the store's own name and logo in the preview
   env                      List environments; * marks the selected one
 
 Add --env <environment> to run one command against another store.
@@ -220,7 +221,15 @@ async function fixture(config: Config, flags: Flags, args: string[]): Promise<vo
     const name = path.basename(file, '.json');
     return console.log(`\nWrote ${display(file)}\nChoose "${name}" under Preview data to see ${products.length === 1 ? 'it' : 'them'} in the email. The customer in it is sample data.`);
   }
-  throw new Error('The only fixture command is "email-builder fixture sku".');
+  if (kind === 'store') {
+    const { file, store } = await buildStoreFixture(config);
+    console.log(`  name     ${store.name}`);
+    console.log(`  domain   ${store.domain}`);
+    console.log(`  logo     ${store.logo || '(none set, so emails show the store name)'}`);
+    console.log(`  address  ${store.address.replace(/\s*\r?\n\s*/g, ', ')}`);
+    return console.log(`\nWrote ${display(file)}\nEvery preview now shows the ${config.envName} environment's store. The customer is still sample data.`);
+  }
+  throw new Error('The fixture commands are "email-builder fixture sku" and "email-builder fixture store".');
 }
 
 /**

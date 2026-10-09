@@ -123,7 +123,13 @@ export interface EmailCustomer {
 // No order or customer endpoints: preview data never includes personal data.
 
 export interface V2Store {
+  name?: string;
+  domain?: string;
+  secure_url?: string;
+  address?: string;
   currency?: string;
+  /** An object when the store has a logo; anything else means it has none. */
+  logo?: { url?: string } | unknown[];
 }
 
 export interface V3ProductImage {
