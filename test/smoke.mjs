@@ -396,6 +396,13 @@ try {
   assert.match(out, /These emails have a mine\.json of their own and keep using it\. Delete it to use the shared one:\n {2}password-reset\n/);
   fs.rmSync(path.join(ws, 'fixtures', '_mine.json'));
   fs.rmSync(path.join(ws, 'fixtures', 'password-reset', 'mine.json'));
+  // the name becomes a file name, and two are taken: preview data called "global" would replace what every preview shares
+  const sharedData = fs.readFileSync(globalFile, 'utf8');
+  for (const taken of ['global', 'Global', 'default']) assert.match(await fails('fixture', 'sku', '--name', taken), new RegExp(`"${taken}" is taken`));
+  assert.match(await fails('fixture', 'sku', '--template', 'password-reset', '--name', 'default'), /"default" is taken/);
+  assert.match(await fails('fixture', 'sku', '--name', '../outside'), /"\.\.\/outside" is not a usable name for preview data/);
+  assert.equal(fs.readFileSync(globalFile, 'utf8'), sharedData, 'the shared data is left as it was');
+  assert.equal(JSON.parse(sharedData).customer.full_name, 'Jordan Rivera');
   fs.writeFileSync(path.join(ws, 'email-builder.json'), JSON.stringify({ skus: ['T1', 'NOPE'] }));
   assert.match(await fails('fixture', 'sku', '--name', 'broken'), /No product or variant in this store's catalog has the SKU "NOPE"/);
   assert.ok(!fs.existsSync(path.join(ws, 'fixtures', '_broken.json')), 'nothing is written when a SKU is missing');

@@ -27,7 +27,7 @@ The [README](../README.md) covers the everyday flow. This page has the detail.
 | `status` | Lists templates that differ from the store. |
 | `lint [template...]` | Flags unsupported HTML and CSS. Exits non-zero if it finds any, so CI can use it. `--partial` also lists features that only partly work. `--accept` adds everything it would report to `lint.ignore` instead; see [Email client check](#email-client-check). |
 | `create <template>` | Downloads one template. `--all` downloads every one. With no name it lists what the store has. Keeps local edits unless you pass `--force`. Adds a starter `email-builder.json` if the project has none. |
-| `fixture sku` | Builds preview data with the products in the `skus` list, for every email to use. `--template` writes it for one email only; `--name` sets the file name. |
+| `fixture sku` | Builds preview data with the products in the `skus` list, for every email to use. `--template` writes it for one email only; `--name` sets the file name (not `global` or `default`, which hold the preview's own sample data). |
 | `fixture store` | Puts the store's own name, logo, domain, address and CDN path into the preview data every email shares. Images in the stock templates need it. |
 | `init` | Sets up a single environment called `default`. `setup` does this and more. |
 

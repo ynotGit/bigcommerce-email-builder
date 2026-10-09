@@ -7,7 +7,7 @@ import { failure, success, warning } from './color.js';
 import {
   BODY_LIMIT, DEFAULT_ENV, PACKAGE_ROOT, WORKSPACE_DIR, display, envFilePath, listEnvNames, loadConfig, resolveWorkspace, selectedEnvName,
 } from './config.js';
-import { buildSkuFixture, buildStoreFixture, ensureDefaultFixtures } from './fixtures.js';
+import { assertFixtureName, buildSkuFixture, buildStoreFixture, ensureDefaultFixtures } from './fixtures.js';
 import { env } from './env.js';
 import { init, saveEnvironment } from './init.js';
 import { lintTemplate, readLintSettings, summariseClients } from './lint.js';
@@ -273,12 +273,11 @@ async function fixture(config: Config, flags: Flags, args: string[]): Promise<vo
         `No SKUs to look up. Add a list to ${display(settingsPath(config))}:\n\n  { "skus": ["TOTE-NAT", "MUG-BLU"] }\n\nthen run "email-builder fixture sku" again.`,
       );
     }
+    const fixtureName = typeof flags.name === 'string' && flags.name ? flags.name : undefined;
+    if (fixtureName) assertFixtureName(fixtureName);
     console.log(`Looking up ${skus.length} SKU(s) from ${SETTINGS_FILE} in the store's catalog.`);
     const typeId = typeof flags.template === 'string' ? toTypeId(flags.template) : undefined;
-    const { file, products, shadowedBy } = await buildSkuFixture(config, skus, {
-      typeId,
-      name: typeof flags.name === 'string' ? flags.name : undefined,
-    });
+    const { file, products, shadowedBy } = await buildSkuFixture(config, skus, { typeId, name: fixtureName });
     for (const p of products) console.log(`  ${p.sku}  ${p.name}  ${p.price}`);
     const name = path.basename(file, '.json').replace(/^_/, '');
     console.log(`\n${success(`Wrote ${display(file)}`)}\nChoose "${name}" under Preview data ${typeId ? `on ${folderName(typeId)}` : 'on any email'} to see ${products.length === 1 ? 'it' : 'them'}. The customer is sample data.`);

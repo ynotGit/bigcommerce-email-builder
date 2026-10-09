@@ -104,6 +104,20 @@ async function productForSku(config: Config, sku: string, currency: string, bran
 /** The order email is the one that reads an order's products in a shape of its own. */
 const ORDER_EMAIL = 'invoice_email';
 
+/**
+ * The name given to preview data becomes a file name, and two are taken:
+ * _global.json and each email's default.json hold what everything else is laid
+ * over. Names are compared without case, as file names are on most Macs.
+ */
+export function assertFixtureName(name: string): void {
+  if (!/^[a-z0-9][a-z0-9_-]*$/i.test(name)) {
+    throw new Error(`"${name}" is not a usable name for preview data. Use letters, numbers, dashes and underscores.`);
+  }
+  if (['global', 'default'].includes(name.toLowerCase())) {
+    throw new Error(`"${name}" is taken: it is the file that holds the preview's own sample data, which this would replace. Choose another name, for example "products".`);
+  }
+}
+
 interface SkuFixtureOptions {
   /** Write one email's own fixture instead of the shared one every email can use. */
   typeId?: string;
