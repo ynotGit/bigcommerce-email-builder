@@ -5,7 +5,7 @@ and publish them to your store.
 
 ## Install
 
-Needs Node 22 or newer. From your project root (the folder that holds
+Needs Node 20 or newer. From your project root (the folder that holds
 `theme-widgets`):
 
     npm install -D github:ynotGit/bigcommerce-email-builder

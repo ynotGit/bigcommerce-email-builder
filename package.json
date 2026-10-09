@@ -21,7 +21,7 @@
     "test": "npm run build && node test/smoke.mjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=20"
   },
   "dependencies": {
     "caniemail": "^2.0.2",
