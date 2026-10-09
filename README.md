@@ -8,7 +8,7 @@ and publish them to your store.
 Needs Node 22 or newer. From your project root (the folder that holds
 `theme-widgets`):
 
-    npm install -D github:ynotGit/bc-email-builder
+    npm install -D github:ynotGit/bigcommerce-email-builder
 
 This adds the tool to your project's dev dependencies, so its commands run
 through `npx`. To update to the latest version, run the same command again.
