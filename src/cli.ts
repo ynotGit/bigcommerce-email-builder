@@ -362,6 +362,9 @@ async function start(config: Config, args: string[]): Promise<void> {
   if (typeId && !local.includes(typeId)) {
     throw new Error(`No local template called ${folderName(typeId)}. Download it first: email-builder create ${folderName(typeId)}`);
   }
+  if (!Number.isInteger(config.port) || config.port < 0 || config.port > 65535) {
+    throw new Error('The preview port must be a whole number from 1 to 65535. Set it with --port, for example: email-builder start --port 4322');
+  }
   // Emails that gained sample data in a newer version of the tool get it here.
   const sampled = ensureDefaultFixtures(config, local);
   if (sampled.length) console.log(`Added sample preview data for ${sampled.length} email(s) in ${display(config.fixturesDir)}.\n`);

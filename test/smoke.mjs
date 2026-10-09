@@ -136,6 +136,15 @@ try {
   // the first download also leaves a starter settings file with the usual preview SKUs
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(ws, 'email-builder.json'))), { skus: ['SM13', 'DPB', 'OFSUC', 'OTL'] });
   assert.match(await run('status'), /Nothing to publish/);
+  // a store that cannot be reached is reported as that, with the reason, where fetch alone says "fetch failed"
+  const closed = http.createServer();
+  await new Promise((r) => closed.listen(0, '127.0.0.1', r));
+  const deadEnd = `127.0.0.1:${closed.address().port}`;
+  await new Promise((r) => closed.close(r));
+  const offline = await exec('node', [cli, 'status'], { cwd, env: { ...env, BC_API_URL: `http://${deadEnd}` } }).catch((e) => e);
+  assert.equal(offline.code, 1);
+  assert.match(offline.stderr, new RegExp(`Could not reach ${deadEnd.replaceAll('.', '\\.')} \\(.*ECONNREFUSED.*\\)\\. Check your internet connection and try again\\.`));
+  assert.doesNotMatch(offline.stderr, /fetch failed/);
   // the same commands work from inside theme-emails; the folder itself is not configurable
   assert.match((await exec('node', [cli, 'status'], { cwd: ws, env })).stdout, /Nothing to publish/);
   assert.match(await fails('status', '--dir', ws), /--dir is not an option\. Files always live in \.\/theme-emails/);
@@ -403,6 +412,12 @@ try {
   assert.match(await fails('fixture', 'sku', '--name', '../outside'), /"\.\.\/outside" is not a usable name for preview data/);
   assert.equal(fs.readFileSync(globalFile, 'utf8'), sharedData, 'the shared data is left as it was');
   assert.equal(JSON.parse(sharedData).customer.full_name, 'Jordan Rivera');
+  // sample data saved by hand that no longer parses is named, where JSON alone says "Unexpected token"
+  const brokenSample = path.join(ws, 'fixtures', 'order-email', 'default.json');
+  fs.mkdirSync(path.dirname(brokenSample), { recursive: true });
+  fs.writeFileSync(brokenSample, '{ "order": ');
+  assert.match(await fails('fixture', 'sku'), /fixtures\/order-email\/default\.json is not valid JSON: /);
+  fs.rmSync(path.dirname(brokenSample), { recursive: true });
   fs.writeFileSync(path.join(ws, 'email-builder.json'), JSON.stringify({ skus: ['T1', 'NOPE'] }));
   assert.match(await fails('fixture', 'sku', '--name', 'broken'), /No product or variant in this store's catalog has the SKU "NOPE"/);
   assert.ok(!fs.existsSync(path.join(ws, 'fixtures', '_broken.json')), 'nothing is written when a SKU is missing');
@@ -513,6 +528,10 @@ try {
   const clash = await exec('node', [cli, 'start', '--port', port], { cwd, env, timeout: 10000 }).catch((e) => e);
   assert.equal(clash.code, 1, 'the command ends by itself');
   assert.match(clash.stderr, new RegExp(`Port ${port} is already in use, most likely by a preview you started earlier\\.[\\s\\S]*email-builder start --port ${Number(port) + 1}`));
+  // a port that is not a port is refused in plain words
+  const badPort = await exec('node', [cli, 'start', '--port', 'abc'], { cwd, env, timeout: 10000 }).catch((e) => e);
+  assert.equal(badPort.code, 1);
+  assert.match(badPort.stderr, /The preview port must be a whole number from 1 to 65535\. Set it with --port, for example: email-builder start --port 4322/);
   server.close();
 
   // setup: one command on a fresh project chains credentials, environment, templates and preview data

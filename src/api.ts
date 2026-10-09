@@ -3,6 +3,13 @@ import type { Config, RemoteTemplate } from './types.js';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** fetch says only "fetch failed"; the reason (no network, a mistyped host, a refused connection) is tucked away in its cause. */
+function unreachable(url: URL, err: unknown): Error {
+  const cause = (err as { cause?: { message?: string; code?: string; errors?: { message?: string }[] } }).cause;
+  const why = cause?.message || cause?.errors?.[0]?.message || cause?.code || (err as Error).message;
+  return new Error(`Could not reach ${url.host} (${why}). Check your internet connection and try again.`);
+}
+
 interface RequestOptions {
   method?: 'GET' | 'PUT';
   body?: unknown;
@@ -26,7 +33,7 @@ export async function bc<T>(config: Config, path: string, options: RequestOption
         ...(body ? { 'Content-Type': 'application/json' } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
-    });
+    }).catch((err: unknown) => { throw unreachable(url, err); });
     if (res.status === 429 && attempt < 3) {
       await sleep(Number(res.headers.get('x-rate-limit-time-reset-ms')) || 1500);
       continue;

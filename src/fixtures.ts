@@ -40,7 +40,12 @@ export function ensureDefaultFixtures(config: Config, typeIds: string[]): string
 /** An email's sample data: its default.json, or the one this tool ships if that is gone. */
 function sampleData(config: Config, typeId: string): Json {
   const file = [path.join(fixtureDir(config, typeId), 'default.json'), path.join(defaultsDir, `${typeId}.json`)].find((f) => fs.existsSync(f));
-  return file ? (JSON.parse(fs.readFileSync(file, 'utf8')) as Json) : {};
+  if (!file) return {};
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8')) as Json;
+  } catch (err) {
+    throw new Error(`fixtures/${folderName(typeId)}/default.json is not valid JSON: ${(err as Error).message}`);
+  }
 }
 
 function money(amount: string | number | undefined, currency: string | undefined): string {
