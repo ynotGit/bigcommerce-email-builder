@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline/promises';
 import { listRemoteTemplates } from './api.js';
+import { failure, success } from './color.js';
 import { DEFAULT_ENV, assertEnvName, display, envFilePath, loadConfig, resolveWorkspace } from './config.js';
 import type { Flags } from './types.js';
 
@@ -73,7 +74,7 @@ export async function saveEnvironment(flags: Flags, name: string): Promise<boole
   if (channel) lines.push(`BC_CHANNEL_ID=${channel}`);
   fs.mkdirSync(root, { recursive: true });
   fs.writeFileSync(envFile, `${lines.join('\n')}\n`, { mode: 0o600 });
-  console.log(`Wrote ${envLabel}`);
+  console.log(success(`Wrote ${envLabel}`));
   const ignored = ensureIgnored(root);
   if (ignored.length) {
     console.log(`Updated ${display(path.join(root, '.gitignore'))} so credentials stay out of git.`);
@@ -82,9 +83,9 @@ export async function saveEnvironment(flags: Flags, name: string): Promise<boole
   // Check the credentials straight away so a typo surfaces here, not on the first publish.
   try {
     const templates = await listRemoteTemplates(loadConfig({ env: name }));
-    console.log(`Connected. The store has ${templates.length} email template(s).`);
+    console.log(success(`Connected. The store has ${templates.length} email template(s).`));
   } catch (err) {
-    console.log(`\n${envLabel} is saved, but the test request failed:\n${(err as Error).message}`);
+    console.log(`\n${failure(`${envLabel} is saved, but the test request failed:\n${(err as Error).message}`)}`);
     process.exitCode = 1;
   }
   return true;

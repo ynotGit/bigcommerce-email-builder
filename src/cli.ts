@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline/promises';
 import { listRemoteTemplates, putRemoteTemplate } from './api.js';
+import { failure, success, warning } from './color.js';
 import {
   BODY_LIMIT, DEFAULT_ENV, PACKAGE_ROOT, WORKSPACE_DIR, display, envFilePath, listEnvNames, loadConfig, resolveWorkspace, selectedEnvName,
 } from './config.js';
@@ -79,7 +80,7 @@ const count = (n: number): string => n.toLocaleString('en-US');
 async function create(config: Config, flags: Flags, args: string[]): Promise<void> {
   const remote = await listRemoteTemplates(config);
   const names = remote.map((t) => folderName(t.type_id)).sort();
-  if (!remote.length) return console.log(`The store returned no templates for ${where(config)}.`);
+  if (!remote.length) return console.log(warning(`The store returned no templates for ${where(config)}.`));
 
   let wanted: RemoteTemplate[];
   if (flags.all) {
@@ -106,9 +107,9 @@ async function create(config: Config, flags: Flags, args: string[]): Promise<voi
   }
   const fixtures = ensureDefaultFixtures(config, wanted.map((t) => t.type_id));
   const starterSettings = ensureSettings(config);
-  console.log(`Downloaded ${wanted.length} template(s) from ${where(config)} into ${display(config.templatesDir)}: ${written} written, ${wanted.length - written - skipped.length} already up to date.`);
+  console.log(success(`Downloaded ${wanted.length} template(s) from ${where(config)} into ${display(config.templatesDir)}: ${written} written, ${wanted.length - written - skipped.length} already up to date.`));
   if (skipped.length) {
-    console.log(`\nKept your local edits to:\n  ${skipped.join('\n  ')}\nAdd --force to overwrite them with the store's version.`);
+    console.log(`\n${warning(`Kept your local edits to:\n  ${skipped.join('\n  ')}`)}\nAdd --force to overwrite them with the store's version.`);
   }
   if (fixtures.length) console.log(`\nCreated ${fixtures.length} starter fixture file(s) in ${display(config.fixturesDir)}.`);
   if (starterSettings) console.log(`Created ${display(settingsPath(config))} with a starter "skus" list for the preview.`);
@@ -142,10 +143,10 @@ async function compare(config: Config, typeIds: string[]): Promise<Comparison[]>
 async function status(config: Config): Promise<void> {
   const rows = await compare(config, listLocalTemplates(config));
   const changed = rows.filter((r) => r.changed.length || r.problem);
-  if (!changed.length) return console.log(`Nothing to publish. Local templates match ${where(config)}.`);
+  if (!changed.length) return console.log(success(`Nothing to publish. Local templates match ${where(config)}.`));
   for (const r of changed) {
     const parts = r.changed.length ? `changed: ${r.changed.join(', ')}` : '';
-    console.log(`  ${folderName(r.typeId)}  ${parts}${r.problem ? `  [${r.problem}]` : ''}`);
+    console.log(`  ${folderName(r.typeId)}  ${parts}${r.problem ? `  ${failure(`[${r.problem}]`)}` : ''}`);
   }
 }
 
@@ -155,25 +156,25 @@ async function publish(config: Config, flags: Flags, args: string[]): Promise<vo
   const blocked = rows.filter((r) => r.problem);
   const ready = rows.filter((r) => !r.problem && r.changed.length);
 
-  for (const r of blocked) console.log(`  blocked  ${folderName(r.typeId)}: ${r.problem}`);
+  for (const r of blocked) console.log(failure(`  blocked  ${folderName(r.typeId)}: ${r.problem}`));
   for (const r of ready) console.log(`  publish  ${folderName(r.typeId)} (${r.changed.join(', ')})`);
   if (blocked.length) throw new Error('Fix the blocked templates first. Nothing was published.');
   const compat = ready.reduce((total, r) => total + lintTemplate(config, r.typeId).length, 0);
-  if (compat) console.log(`\n${compat} feature(s) in these templates are not supported by some email clients. See them with: email-builder lint`);
-  if (!ready.length) return console.log(`Nothing to publish. These templates already match ${where(config)}.`);
+  if (compat) console.log(`\n${warning(`${compat} feature(s) in these templates are not supported by some email clients.`)} See them with: email-builder lint`);
+  if (!ready.length) return console.log(success(`Nothing to publish. These templates already match ${where(config)}.`));
   if (flags['dry-run']) return console.log('\nDry run. Nothing was published.');
 
   if (!flags.yes) {
     if (!process.stdin.isTTY) throw new Error('Not publishing without confirmation. Pass --yes to publish from a script.');
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const answer = await rl.question(`\nThis replaces ${ready.length} live template(s) in the ${config.envName} environment (store ${config.storeHash}, ${where(config)}). Publish? [y/N] `);
+    const answer = await rl.question(`\n${warning(`This replaces ${ready.length} live template(s) in the ${config.envName} environment (store ${config.storeHash}, ${where(config)}).`)} Publish? [y/N] `);
     rl.close();
     if (!/^y(es)?$/i.test(answer.trim())) return console.log('Nothing was published.');
   }
   for (const r of ready) {
     if (!r.local) continue;
     await putRemoteTemplate(config, toApiPayload(r.local));
-    console.log(`  published  ${folderName(r.typeId)}`);
+    console.log(success(`  published  ${folderName(r.typeId)}`));
   }
 }
 
@@ -184,7 +185,7 @@ function lint(config: Config, flags: Flags, args: string[]): number {
   const unknown = typeIds.filter((id) => !local.includes(id));
   if (unknown.length) throw new Error(`No local template called ${unknown.map(folderName).join(', ')}.`);
   if (!typeIds.length) {
-    console.log('No templates to check yet. Run "email-builder create --all" first.');
+    console.log(warning('No templates to check yet. Run "email-builder create --all" first.'));
     return 0;
   }
 
@@ -198,14 +199,14 @@ function lint(config: Config, flags: Flags, args: string[]): number {
     for (const issue of issues) {
       if (issue.level === 'unsupported') unsupported++; else partial++;
       const where = issue.line ? `${issue.line}:${issue.column}` : '-';
-      const verb = issue.level === 'unsupported' ? 'not supported in' : 'partial support in';
+      const verb = issue.level === 'unsupported' ? failure('not supported in') : warning('partial support in');
       console.log(`  ${where.padEnd(8)} ${issue.title}  ${verb} ${summariseClients(issue.clients)}`);
     }
     console.log('');
   }
   const checked = `Checked ${typeIds.length} template(s) against ${settings.clients.length} email client(s) using caniemail.com data.`;
-  if (!unsupported && !partial) console.log(`${checked} No problems found.`);
-  else console.log(`${checked}\n${unsupported} unsupported feature(s)${flags.partial ? `, ${partial} partly supported` : ''}.`);
+  if (!unsupported && !partial) console.log(`${checked} ${success('No problems found.')}`);
+  else console.log(`${checked}\n${(unsupported ? failure : warning)(`${unsupported} unsupported feature(s)${flags.partial ? `, ${partial} partly supported` : ''}.`)}`);
   return unsupported;
 }
 
@@ -230,9 +231,9 @@ async function fixture(config: Config, flags: Flags, args: string[]): Promise<vo
     });
     for (const p of products) console.log(`  ${p.sku}  ${p.name}  ${p.price}`);
     const name = path.basename(file, '.json').replace(/^_/, '');
-    console.log(`\nWrote ${display(file)}\nChoose "${name}" under Preview data ${typeId ? `on ${folderName(typeId)}` : 'on any email'} to see ${products.length === 1 ? 'it' : 'them'}. The customer is sample data.`);
+    console.log(`\n${success(`Wrote ${display(file)}`)}\nChoose "${name}" under Preview data ${typeId ? `on ${folderName(typeId)}` : 'on any email'} to see ${products.length === 1 ? 'it' : 'them'}. The customer is sample data.`);
     if (shadowedBy.length) {
-      console.log(`\nThese emails have a ${name}.json of their own and keep using it. Delete it to use the shared one:\n  ${shadowedBy.join('\n  ')}`);
+      console.log(`\n${warning(`These emails have a ${name}.json of their own and keep using it.`)} Delete it to use the shared one:\n  ${shadowedBy.join('\n  ')}`);
     }
     return undefined;
   }
@@ -242,7 +243,7 @@ async function fixture(config: Config, flags: Flags, args: string[]): Promise<vo
     console.log(`  domain   ${store.domain}`);
     console.log(`  logo     ${store.logo || '(none set, so emails show the store name)'}`);
     console.log(`  address  ${store.address.replace(/\s*\r?\n\s*/g, ', ')}`);
-    return console.log(`\nWrote ${display(file)}\nEvery preview now shows the ${config.envName} environment's store. The customer is still sample data.`);
+    return console.log(`\n${success(`Wrote ${display(file)}`)}\nEvery preview now shows the ${config.envName} environment's store. The customer is still sample data.`);
   }
   throw new Error('The fixture commands are "email-builder fixture sku" and "email-builder fixture store".');
 }
@@ -267,11 +268,11 @@ async function setup(flags: Flags, args: string[]): Promise<void> {
       continue;
     }
     const saved = await saveEnvironment(flags, each);
-    if (!saved) return console.log('\nSetup stopped.');
+    if (!saved) return console.log(`\n${failure('Setup stopped.')}`);
     if (process.exitCode) {
       // Do not keep credentials that failed, so the next run asks for them again.
       fs.rmSync(envFilePath(root, each), { force: true });
-      return console.log(`\nSetup stopped and the ${each} credentials were not kept. Fix the problem above and run it again.`);
+      return console.log(`\n${failure(`Setup stopped and the ${each} credentials were not kept.`)} Fix the problem above and run it again.`);
     }
   }
   // Setup never chooses an environment for you. It only borrows the first one
@@ -285,18 +286,18 @@ async function setup(flags: Flags, args: string[]): Promise<void> {
   // Preview data is a nicety: a missing scope or SKU here should not stop the setup.
   console.log('\nStep 3 of 3: catalog products for the preview');
   if (!readSkus(config).length) {
-    console.log(`Skipped: no "skus" list in ${display(settingsPath(config))} yet.`);
+    console.log(warning(`Skipped: no "skus" list in ${display(settingsPath(config))} yet.`));
   } else {
     try {
       await fixture(config, {}, ['sku']);
     } catch (err) {
-      console.log(`Skipped: ${(err as Error).message.split('\n')[0]}`);
+      console.log(warning(`Skipped: ${(err as Error).message.split('\n')[0]}`));
     }
   }
 
   const active = selectedEnvName(root);
-  if (active) return console.log(`\nSetup complete. ${active} is the selected environment. Next: email-builder start`);
-  console.log(`\nSetup complete. Nothing is selected yet, so choose an environment before you start:\n\n  email-builder env use ${name}\n  email-builder start`);
+  if (active) return console.log(`\n${success(`Setup complete. ${active} is the selected environment.`)} Next: email-builder start`);
+  console.log(`\n${success('Setup complete.')} ${warning('Nothing is selected yet, so choose an environment before you start:')}\n\n  email-builder env use ${name}\n  email-builder start`);
 }
 
 async function start(config: Config, args: string[]): Promise<void> {
@@ -309,9 +310,9 @@ async function start(config: Config, args: string[]): Promise<void> {
   const sampled = ensureDefaultFixtures(config, local);
   if (sampled.length) console.log(`Added sample preview data for ${sampled.length} email(s) in ${display(config.fixturesDir)}.\n`);
   const { url } = await startServer(config);
-  console.log(`Starting email-builder at ${url}${typeId ? `/#type=${typeId}` : ''}`);
+  console.log(success(`Starting email-builder at ${url}${typeId ? `/#type=${typeId}` : ''}`));
   console.log(`Environment ${config.envName}. Previewing ${local.length} template(s) from ${display(config.templatesDir)}. Press Ctrl+C to stop.`);
-  if (!local.length) console.log('No templates yet. Run "email-builder create --all" in another terminal.');
+  if (!local.length) console.log(warning('No templates yet. Run "email-builder create --all" in another terminal.'));
 }
 
 function version(): string {
@@ -352,6 +353,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  console.error(`\n${err instanceof Error ? err.message : String(err)}`);
+  console.error(`\n${failure(err instanceof Error ? err.message : String(err), process.stderr)}`);
   process.exitCode = 1;
 });

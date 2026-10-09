@@ -41,6 +41,10 @@ only.
 Commands work from the project root or from inside `theme-emails/`. The folder
 name is fixed.
 
+In a terminal, results are coloured: green for what worked, orange for a
+warning, red for an error. Output sent to a file or another program is plain
+text, and `NO_COLOR=1` turns the colour off.
+
 For scripts, `setup`, `env add` and `init` accept
 `--store-hash <hash> --token <token> [--channel <id>]` instead of asking.
 The store hash can be the full API path BigCommerce shows.

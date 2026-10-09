@@ -2,6 +2,7 @@ import {
   DEFAULT_ENV, assertEnvName, envFilePath, listEnvNames, parseEnvFile,
   resolveWorkspace, selectedEnvName, setActiveEnv,
 } from './config.js';
+import { success, warning } from './color.js';
 import { saveEnvironment } from './init.js';
 import type { Flags } from './types.js';
 
@@ -13,14 +14,14 @@ function describe(root: string, name: string): string {
 
 function list(root: string, flags: Flags): void {
   const names = listEnvNames(root);
-  if (!names.length) return console.log('No environments yet. Run "email-builder init" to set up the first one.');
+  if (!names.length) return console.log(warning('No environments yet. Run "email-builder init" to set up the first one.'));
   const active = selectedEnvName(root, flags);
   const width = Math.max(...names.map((n) => n.length));
   for (const name of names) {
     console.log(`${name === active ? '*' : ' '} ${name.padEnd(width)}  ${describe(root, name)}`);
   }
-  if (!active) console.log(`\nNone selected. Choose one with: email-builder env use ${names.find((n) => n !== DEFAULT_ENV) ?? names[0]}`);
-  else if (!names.includes(active)) console.log(`\nThe active environment "${active}" has no saved credentials.`);
+  if (!active) console.log(`\n${warning('None selected.')} Choose one with: email-builder env use ${names.find((n) => n !== DEFAULT_ENV) ?? names[0]}`);
+  else if (!names.includes(active)) console.log(`\n${warning(`The active environment "${active}" has no saved credentials.`)}`);
 }
 
 function use(root: string, name: string | undefined): void {
@@ -33,7 +34,7 @@ function use(root: string, name: string | undefined): void {
     );
   }
   setActiveEnv(root, name);
-  console.log(`Now using ${name}: ${describe(root, name)}.\nEvery command targets it until you switch again.`);
+  console.log(`${success(`Now using ${name}: ${describe(root, name)}.`)}\nEvery command targets it until you switch again.`);
 }
 
 async function add(flags: Flags, name: string | undefined): Promise<void> {

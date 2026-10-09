@@ -74,7 +74,7 @@ const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'email-builder-'));
 const env = { ...process.env, BC_API_URL: `http://127.0.0.1:${api.address().port}` };
 const fresh = fs.mkdtempSync(path.join(os.tmpdir(), 'email-builder-fresh-')); // a second, untouched project
 const ws = path.join(cwd, 'theme-emails'); // the workspace the tool creates inside a project
-for (const key of ['BC_STORE_HASH', 'BC_ACCESS_TOKEN', 'BC_CHANNEL_ID', 'EMAIL_BUILDER_ENV']) delete env[key];
+for (const key of ['BC_STORE_HASH', 'BC_ACCESS_TOKEN', 'BC_CHANNEL_ID', 'EMAIL_BUILDER_ENV', 'FORCE_COLOR', 'NO_COLOR']) delete env[key];
 // Async on purpose: the mock API lives in this process and must stay responsive.
 const exec = promisify(execFile);
 const run = async (...args) => {
@@ -234,6 +234,23 @@ try {
   assert.equal(puts[0].body.subject, 'New subject for {{store.name}}');
   assert.deepEqual(puts[0].body.translations, [{ locale: 'en', keys: { reset_password: 'To change your password at {name} click:' } }]);
   assert.match(await run('status'), /Nothing to publish/);
+
+  // colour: green for what worked, orange for a warning, red for an error. Only a terminal gets it, so
+  // everything above ran plain; FORCE_COLOR stands in for a terminal here and NO_COLOR turns it off again
+  const coloured = async (extra, ...args) => {
+    const child = exec('node', [cli, ...args], { cwd, env: { ...env, FORCE_COLOR: '1', ...extra } });
+    child.child.stdin.end();
+    return child.then((done) => done.stdout, (e) => `${e.stdout}${e.stderr}`);
+  };
+  const [green, orange, red, reset] = ['\x1b[32m', '\x1b[38;5;208m', '\x1b[31m', '\x1b[39m'];
+  assert.ok((await coloured({}, 'status')).includes(`${green}Nothing to publish. Local templates match the global templates.${reset}`));
+  assert.ok((await coloured({}, 'publish')).includes(`${red}Name the templates to publish, or pass --all for every changed one.${reset}`));
+  fs.writeFileSync(subjectFile, 'Edited locally\n');
+  out = await coloured({}, 'create', '--all');
+  assert.ok(out.includes(`${orange}Kept your local edits to:\n  password-reset${reset}\nAdd --force`), out);
+  assert.ok(out.includes(`${green}Downloaded 2 template(s)`));
+  assert.doesNotMatch(await coloured({ FORCE_COLOR: '', NO_COLOR: '1' }, 'create', '--all'), /\x1b\[/);
+  await run('create', '--all', '--force');
 
   // environments: a second store, switching, and a one-off override
   out = await run('env', 'add', 'staging', '--store-hash', 'stagehash', '--token', 'tok');
