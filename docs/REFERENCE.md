@@ -17,7 +17,7 @@ The [README](../README.md) covers the everyday flow. This page has the detail.
 
 | Command | What it does |
 | --- | --- |
-| `setup [environment...]` | Saves credentials for each environment named (`default` if none), downloads every template from the first one, and runs `fixture sku` if a `skus` list exists. Does not select an environment. Safe to rerun: it skips saved credentials and keeps local edits. Stops before downloading if the credentials fail. |
+| `setup [environment...]` | Saves credentials for each environment named (`default` if none), downloads every template from the first one, and runs `fixture sku` for the `skus` list. Does not select an environment. Safe to rerun: it skips saved credentials and keeps local edits. Stops before downloading if the credentials fail. |
 | `env` | Lists saved environments; `*` marks the selected one. |
 | `env use <name>` | Points every command at that environment until you switch again. |
 | `env add <name>` | Saves one more store's credentials. `--force` replaces existing ones. |
@@ -25,7 +25,7 @@ The [README](../README.md) covers the everyday flow. This page has the detail.
 | `publish <template...>` | Uploads the named templates; `--all` takes every changed one. Shows the plan and asks first. `--dry-run` stops after the plan; `--yes` skips the question. |
 | `status` | Lists templates that differ from the store. |
 | `lint [template...]` | Flags unsupported HTML and CSS. Exits non-zero if it finds any, so CI can use it. `--partial` also lists features that only partly work. |
-| `create <template>` | Downloads one template. `--all` downloads every one. With no name it lists what the store has. Keeps local edits unless you pass `--force`. |
+| `create <template>` | Downloads one template. `--all` downloads every one. With no name it lists what the store has. Keeps local edits unless you pass `--force`. Adds a starter `email-builder.json` if the project has none. |
 | `fixture sku` | Builds preview data with the products in the `skus` list. `--template` targets another email; `--name` sets the file name. |
 | `fixture store` | Puts the store's own name, logo, domain, address and CDN path into the preview data every email shares. Images in the stock templates need it. |
 | `init` | Sets up a single environment called `default`. `setup` does this and more. |
@@ -81,7 +81,7 @@ the tool is installed globally.
 
     theme-emails/
       .env, .env.<name>, .active-env                 credentials and selection (gitignored)
-      email-builder.json                             optional team settings
+      email-builder.json                             team settings; a starter is added with the templates
       templates/global/<type_id>/body.html           the email body (Handlebars)
       templates/global/<type_id>/subject.hbs         the subject line
       templates/global/<type_id>/translations.json   phrases, keyed by locale
@@ -91,7 +91,9 @@ the tool is installed globally.
 
 ## Settings file
 
-`theme-emails/email-builder.json` is optional and committed with the project.
+`theme-emails/email-builder.json` is committed with the project. If there is
+none, `create` and `setup` add a starter whose `skus` list is SM13, DPB, OFSUC
+and OTL. An existing file is never replaced.
 
     {
       "skus": ["TOTE-NAT", "MUG-BLU", "SHIRT-RED-M"],

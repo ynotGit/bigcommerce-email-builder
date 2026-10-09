@@ -102,12 +102,15 @@ try {
   assert.match(await fails('create', 'nope_email'), /no template called nope_email/);
   out = await run('create', 'theme-emails/templates/global/account_reset_password_email/');
   assert.match(out, /Downloaded 1 template.*into theme-emails\/templates\/global: 1 written/);
+  assert.match(out, /Created theme-emails\/email-builder\.json with a starter "skus" list/);
   assert.ok(!fs.existsSync(tpl('combined_order_status_email')));
   out = await run('create', '--all');
   assert.match(out, /Downloaded 2 template.*1 written, 1 already up to date/);
   assert.equal(fs.readFileSync(tpl('combined_order_status_email', 'body.html'), 'utf8'), remote.combined_order_status_email.body);
   assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(tpl('combined_order_status_email', 'translations.json')))), ['en', 'fr']);
   assert.ok(fs.existsSync(path.join(ws, 'fixtures', '_global.json')));
+  // the first download also leaves a starter settings file with the usual preview SKUs
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(ws, 'email-builder.json'))), { skus: ['SM13', 'DPB', 'OFSUC', 'OTL'] });
   assert.match(await run('status'), /Nothing to publish/);
   // the same commands work from inside theme-emails; the folder itself is not configurable
   assert.match((await exec('node', [cli, 'status'], { cwd: ws, env })).stdout, /Nothing to publish/);
@@ -285,6 +288,7 @@ try {
   await run('fixture', 'store');
   assert.equal(JSON.parse(fs.readFileSync(globalFile)).customer.full_name, 'Jordan Rivera', 'a missing file starts from the shipped sample');
   // real catalog products by SKU, in an otherwise sample order
+  fs.writeFileSync(path.join(ws, 'email-builder.json'), '{}'); // as if the team had cleared the starter list
   assert.match(await fails('fixture', 'sku'), /No SKUs to look up\. Add a list to theme-emails\/email-builder\.json/);
   // the team's saved list is the normal source; numbers, blanks and repeats are tidied
   fs.writeFileSync(path.join(ws, 'email-builder.json'), JSON.stringify({ skus: ['T1', ' SHIRT-RED-M ', '', 'T1'] }));
@@ -396,6 +400,7 @@ try {
   assert.ok(fs.existsSync(path.join(freshWs, 'templates', 'global', 'combined_order_status_email', 'body.html')));
   assert.equal(JSON.parse(fs.readFileSync(path.join(freshWs, 'fixtures', '_global.json'))).store.name, 'Example Store');
   assert.ok(fs.existsSync(path.join(freshWs, 'fixtures', 'combined_order_status_email', 'products.json')));
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(freshWs, 'email-builder.json'))), { skus: ['T1'] }, 'a settings file that is already there is never replaced');
   // rerunning is safe: no questions, local edits kept
   fs.appendFileSync(path.join(freshWs, 'templates', 'global', 'combined_order_status_email', 'body.html'), '<!-- mine -->');
   out = await runIn(fresh, 'setup', 'staging');

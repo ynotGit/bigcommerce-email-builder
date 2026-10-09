@@ -12,7 +12,7 @@ import { init, saveEnvironment } from './init.js';
 import { lintTemplate, readLintSettings, summariseClients } from './lint.js';
 import { checkSyntax } from './render.js';
 import { startServer } from './server.js';
-import { SETTINGS_FILE, readSkus, settingsPath } from './settings.js';
+import { SETTINGS_FILE, ensureSettings, readSkus, settingsPath } from './settings.js';
 import { diffTemplate, listLocalTemplates, readLocalTemplate, toApiPayload, writeLocalTemplate } from './store.js';
 import type { Config, Flags, LocalTemplate, RemoteTemplate, TemplatePart } from './types.js';
 
@@ -97,11 +97,13 @@ async function create(config: Config, flags: Flags, args: string[]): Promise<voi
     if (!local || changed.length) { writeLocalTemplate(config, template); written++; }
   }
   const fixtures = ensureDefaultFixtures(config, wanted.map((t) => t.type_id));
+  const starterSettings = ensureSettings(config);
   console.log(`Downloaded ${wanted.length} template(s) from ${where(config)} into ${display(config.templatesDir)}: ${written} written, ${wanted.length - written - skipped.length} already up to date.`);
   if (skipped.length) {
     console.log(`\nKept your local edits to:\n  ${skipped.join('\n  ')}\nAdd --force to overwrite them with the store's version.`);
   }
   if (fixtures.length) console.log(`\nCreated ${fixtures.length} starter fixture file(s) in ${display(config.fixturesDir)}.`);
+  if (starterSettings) console.log(`Created ${display(settingsPath(config))} with a starter "skus" list for the preview.`);
   const first = wanted[0];
   if (first && !flags.chained) console.log(`\nNext: email-builder start ${wanted.length === 1 ? first.type_id : ''}`.trimEnd());
 }

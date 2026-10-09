@@ -1,6 +1,7 @@
 // Project settings shared by the team: theme-emails/email-builder.json
 import fs from 'node:fs';
 import path from 'node:path';
+import { PACKAGE_ROOT } from './config.js';
 import type { Config, LintSettings } from './types.js';
 
 export const SETTINGS_FILE = 'email-builder.json';
@@ -12,6 +13,15 @@ export interface Settings {
 }
 
 export const settingsPath = (config: Config): string => path.join(config.root, SETTINGS_FILE);
+
+/** Starts a project off with the shipped settings: the usual SKUs to preview with. Never replaces a file that is there. */
+export function ensureSettings(config: Config): boolean {
+  const file = settingsPath(config);
+  if (fs.existsSync(file)) return false;
+  fs.mkdirSync(config.root, { recursive: true });
+  fs.copyFileSync(path.join(PACKAGE_ROOT, 'defaults', SETTINGS_FILE), file);
+  return true;
+}
 
 export function readSettings(config: Config): Settings {
   const file = settingsPath(config);

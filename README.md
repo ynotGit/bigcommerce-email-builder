@@ -76,7 +76,7 @@ another store without switching, add `--env production`.
 | --- | --- |
 | Check for HTML and CSS that email clients do not support | `npx email-builder lint` |
 | See which emails differ from the store | `npx email-builder status` |
-| Show real products in the preview | Add `{ "skus": ["TOTE-NAT"] }` to `theme-emails/email-builder.json`, then `npx email-builder fixture sku` |
+| Show real products in the preview | `npx email-builder fixture sku`. It uses the `skus` list in `theme-emails/email-builder.json`, which starts with SM13, DPB, OFSUC and OTL; edit it for other products |
 
 ## Good to know
 
