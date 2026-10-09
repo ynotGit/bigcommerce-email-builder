@@ -216,6 +216,11 @@ try {
   assert.match(await run('status'), /password-reset\s+changed: subject/);
   assert.match(await run('publish', '--all', '--dry-run'), /Dry run/);
   assert.match(await fails('publish', '--all'), /Not publishing without confirmation/);
+  // an option a command does not take stops it before anything runs: a misspelt --dry-run must never become a real publish
+  assert.match(await fails('publish', '--all', '--dryrun', '--yes'), /Unknown option --dryrun\. "publish" takes --all, --dry-run, --yes and --env\. Nothing was run\./);
+  assert.match(await fails('publish', '--all', '-n', '--yes'), /Unknown option -n\. "publish" takes/);
+  assert.match(await fails('publish', '--all', '--yes=false'), /--yes does not take a value\./);
+  assert.match(await fails('status', '--all', '--force'), /Unknown options --all, --force\. "status" takes --env\. Nothing was run\./);
   assert.equal(puts.length, 0);
 
   const bodyFile = tpl('order-status-update', 'body.html');

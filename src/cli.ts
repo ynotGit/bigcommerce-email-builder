@@ -43,22 +43,52 @@ Files live in ./${WORKSPACE_DIR}. Every command and option: docs/REFERENCE.md
 const VALUE_FLAGS = new Set(['dir', 'env', 'channel', 'port', 'template', 'name', 'store-hash', 'token']);
 const SHORT_FLAGS: Record<string, string> = { '-h': '--help', '-v': '--version', '-y': '--yes' };
 
+/**
+ * The options each command takes, besides --env, which they all do. Anything
+ * else stops the command, so a misspelt --dry-run can never become a real publish.
+ */
+const COMMAND_FLAGS: Record<string, string[]> = {
+  setup: ['store-hash', 'token', 'channel', 'force'],
+  init: ['store-hash', 'token', 'channel', 'force'],
+  env: ['store-hash', 'token', 'channel', 'force'],
+  create: ['all', 'force'],
+  start: ['port'],
+  publish: ['all', 'dry-run', 'yes'],
+  status: [],
+  lint: ['partial', 'accept'],
+  fixture: ['template', 'name'],
+};
+
 function parseArgs(argv: string[]): { flags: Flags; positional: string[] } {
   const flags: Flags = {};
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const arg = SHORT_FLAGS[argv[i] ?? ''] ?? argv[i] ?? '';
-    if (!arg.startsWith('--')) { positional.push(arg); continue; }
+    if (!arg.startsWith('-')) { positional.push(arg); continue; }
+    // A short option this tool does not have, such as -n, is kept as it was typed and refused with the rest.
+    if (!arg.startsWith('--')) { flags[arg] = true; continue; }
     const [key = '', inline] = arg.slice(2).split('=');
     if (VALUE_FLAGS.has(key)) {
       const value = inline ?? argv[++i];
       if (value === undefined) throw new Error(`--${key} needs a value`);
       flags[key] = value;
     } else {
+      if (inline !== undefined) throw new Error(`--${key} does not take a value.`);
       flags[key] = true;
     }
   }
   return { flags, positional };
+}
+
+/** Stops before anything runs if the command was given an option it does not take. */
+function refuseUnknownOptions(command: string, flags: Flags): void {
+  const takes = COMMAND_FLAGS[command];
+  if (!takes) return; // an unknown command is reported as that
+  const spell = (flag: string): string => (flag.startsWith('-') ? flag : `--${flag}`);
+  const unknown = Object.keys(flags).filter((flag) => flag !== 'env' && !takes.includes(flag));
+  if (!unknown.length) return;
+  const options = new Intl.ListFormat('en-GB').format([...takes, 'env'].map(spell));
+  throw new Error(`Unknown option${unknown.length > 1 ? 's' : ''} ${unknown.map(spell).join(', ')}. "${command}" takes ${options}. Nothing was run.`);
 }
 
 /** "templates/global/order-email/", "order-email" and the type ID "invoice_email" all name the same template. */
@@ -356,6 +386,7 @@ async function main(): Promise<void> {
   if (flags.channel && !['init', 'setup', 'env'].includes(command)) {
     throw new Error('--channel is not an option here. A channel belongs to an environment: set it when you save one with "email-builder env add <name>", then select that environment.');
   }
+  refuseUnknownOptions(command, flags);
   if (command === 'init') return init(flags);
   if (command === 'env') return env(flags, positional);
   if (command === 'setup') return setup(flags, positional);

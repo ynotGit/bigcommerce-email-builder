@@ -242,6 +242,9 @@ caniemail.com has no data for some feature and client pairs (for example
 - `publish` refuses a template with a Handlebars syntax error or a body over
   65,536 characters (BigCommerce truncates past that), and publishes nothing
   if any template in the batch is blocked.
+- A command given an option it does not take stops before doing anything and
+  lists the ones it does, so a misspelt `--dry-run` cannot turn into a real
+  publish.
 - The tool never requests orders or customers.
 - The preview only listens on localhost.
 
