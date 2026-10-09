@@ -13,6 +13,21 @@ Needs Node 22 or newer. From your project root (the folder that holds
 This adds the tool to your project's dev dependencies, so its commands run
 through `npx`. To update to the latest version, run the same command again.
 
+## API account
+
+Each store needs a store-level API account: in the BigCommerce admin, go to
+Settings > Store-level API accounts and create one with the token type
+"V2/V3 API token". These are the only scopes it needs; leave the rest on None.
+
+| Scope | Level | Used for |
+| --- | --- | --- |
+| Information & settings | modify | Downloading and publishing the email templates, and `fixture store` |
+| Products | read-only | `fixture sku`, and only that |
+
+Read-only on Information & settings is enough for an account that previews
+but never publishes. Keep the store hash (or the API path) and the access
+token it shows you; the client ID and secret are not used.
+
 ## First time
 
 From the same folder:
@@ -69,9 +84,6 @@ another store without switching, add `--env production`.
   orders or customers from your store.
 - A teammate joining the project runs `npm install`, then the same `setup`
   command to add their own credentials.
-- The API token needs access to email templates. `fixture sku` also needs
-  read access to products and store information (for the currency);
-  `fixture store` needs store information.
 
 Everything else (all commands and options, settings, make targets, how the
 preview differs from a real email) is in [docs/REFERENCE.md](docs/REFERENCE.md).
