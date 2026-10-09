@@ -146,6 +146,10 @@ Handlebars render.
 - `{{lang 'key' name=value}}` works: it reads `translations.json` for the
   selected language and fills `{name}` placeholders.
 - The Handlebars built-ins (`if`, `unless`, `each`, `with`) work.
+- BigCommerce's own conditionals and loop work: `if` and `unless` with a
+  comparison (`{{#if order.new_status '===' 'Shipped'}}`), `or`, `for`, and
+  `(if ...)` nested inside another helper. They follow BigCommerce's
+  open-source Stencil helpers, so an empty object counts as false.
 - Any other BigCommerce helper is not available. The preview highlights where
   it is used and lists a warning; check that part with a test email.
 

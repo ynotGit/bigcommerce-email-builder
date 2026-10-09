@@ -36,6 +36,36 @@ export function listFixtures(config: Config, typeId: string): string[] {
     .sort((a, b) => (a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b)));
 }
 
+/** What BigCommerce's conditionals count as true. Unlike stock Handlebars, an empty object is false. */
+const truthy = (value: unknown): boolean =>
+  Array.isArray(value) ? value.length > 0 : isObject(value) ? Object.keys(value).length > 0 : Boolean(value);
+
+/** The operators BigCommerce's if accepts between two values. */
+function compare(left: unknown, operator: unknown, right: unknown): boolean {
+  const [a, b] = [left as number, right as number]; // typed for the ordering operators; any value can arrive
+  switch (operator) {
+    case '==': return left == right;
+    case '===': return left === right;
+    case '!=': return left != right;
+    case '!==': return left !== right;
+    case '<': return a < b;
+    case '>': return a > b;
+    case '<=': return a <= b;
+    case '>=': return a >= b;
+    case 'typeof': return typeof left === right;
+    case 'gtnum':
+      if (typeof left !== 'string' || typeof right !== 'string' || isNaN(Number(left)) || isNaN(Number(right))) {
+        throw new Error('"if gtnum" only accepts numbers written as strings.');
+      }
+      return parseInt(left, 10) > parseInt(right, 10);
+    default:
+      throw new Error(`The if helper does not know the operator "${String(operator)}".`);
+  }
+}
+
+/** Called inside another helper rather than as a block, a helper gets no fn or inverse. */
+type HelperCall = Omit<Handlebars.HelperOptions, 'fn' | 'inverse'> & Partial<Pick<Handlebars.HelperOptions, 'fn' | 'inverse'>>;
+
 interface HelperContext {
   translations: TranslationMap;
   locale: string;
@@ -59,6 +89,44 @@ function buildHandlebars({ translations, locale, warn }: HelperContext): Handleb
       warn(`Phrase "${key}" expects {${name}}, but the template does not pass it`);
       return match;
     });
+  });
+
+  // BigCommerce replaces the built-in conditionals with its own, which also take
+  // a comparison, {{#if a '===' b}}, and nest inside other helpers,
+  // {{#or (if a '===' b) (if c)}}. Stock Handlebars throws on both forms.
+  const test = (args: unknown[], options: HelperCall): boolean => {
+    const [left, middle, right] = args;
+    if (args.length < 2) return truthy(left);
+    // {{#if a b operator='!='}} is the older spelling of {{#if a '!=' b}}
+    return args.length === 2 ? compare(left, options.hash.operator ?? '==', middle) : compare(left, middle, right);
+  };
+  // A block renders one of its branches. Inside another helper there is no block, and the answer is the value.
+  const answer = (scope: unknown, options: HelperCall, result: boolean): unknown =>
+    options.fn && options.inverse ? (result ? options.fn(scope) : options.inverse(scope)) : result;
+
+  hbs.registerHelper('if', function (this: unknown, ...args: unknown[]) {
+    const options = args.pop() as HelperCall;
+    return answer(this, options, test(args, options));
+  });
+  hbs.registerHelper('unless', function (this: unknown, ...args: unknown[]) {
+    const options = args.pop() as HelperCall;
+    return answer(this, options, !test(args, options));
+  });
+  hbs.registerHelper('or', function (this: unknown, ...args: unknown[]) {
+    const options = args.pop() as HelperCall;
+    return answer(this, options, args.some(truthy));
+  });
+
+  // {{#for 1 30}} repeats its block with the count in {{$index}}; {{#for 30}} starts at 1.
+  // An object after the numbers becomes the block's context. BigCommerce stops at 100 rounds.
+  hbs.registerHelper('for', (...args: unknown[]) => {
+    const options = args.pop() as Handlebars.HelperOptions;
+    const scope = isObject(args.at(-1)) ? (args.pop() as Json) : {};
+    const from = args.length > 1 ? parseInt(String(args[0]), 10) : 1;
+    const to = Math.min(parseInt(String(args.at(-1)), 10), from + 99);
+    let out = '';
+    for (let i = from; i <= to; i++) out += options.fn({ ...scope, $index: i });
+    return out;
   });
 
   // Anything this tool has not implemented shows up as a warning instead of a crash.

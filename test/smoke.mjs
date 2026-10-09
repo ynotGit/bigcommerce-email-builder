@@ -145,6 +145,28 @@ try {
   assert.equal(r.warnings.length, 3);
   fs.rmSync(path.join(ws, 'helpers.local.js'));
 
+  // BigCommerce's conditionals and loop: comparisons, (if ...) inside another helper, or, unless and for
+  const conditionals = (body) => {
+    fs.writeFileSync(tpl('account_reset_password_email', 'body.html'), body);
+    return renderEmail(config, { typeId: 'account_reset_password_email' });
+  };
+  r = await conditionals([
+    "{{#if store.name '===' 'Example Store'}}same{{else}}differs{{/if}}",
+    "{{#if misc.year '<' 2000}}old{{else}}new{{/if}}",
+    "{{#or (if customer.first_name '===' 'Nope') (if misc.year '>' 2000)}}either{{else}}neither{{/or}}",
+    "{{#or (if customer.first_name '===' 'Nope') missing}}either{{else}}neither{{/or}}",
+    "{{#unless customer.first_name '===' 'Jordan'}}stranger{{else}}known{{/unless}}",
+    "{{#if account}}account{{/if}}{{#if missing}}never{{/if}}{{#unless missing}}absent{{/unless}}",
+    "{{#if 0}}zero{{else}}no zero{{/if}}",
+    "{{#if store.name 'Example Store' operator='!='}}renamed{{else}}as shipped{{/if}}",
+    "{{#for 1 3}}[{{$index}}]{{/for}}{{#for 2}}({{$index}}){{/for}}{{#for 1 2 customer}}<{{first_name}}{{$index}}>{{/for}}",
+  ].join('|'));
+  assert.equal(r.error, null);
+  assert.equal(r.html, 'same|new|either|neither|known|accountabsent|no zero|as shipped|[1][2][3](1)(2)<Jordan1><Jordan2>');
+  assert.deepEqual(r.warnings, []);
+  assert.equal((await conditionals('{{#for 1 500}}.{{/for}}')).html.length, 100, 'a loop stops at 100 rounds, as it does at BigCommerce');
+  assert.match((await conditionals("{{#if 1 'nope' 2}}x{{/if}}")).error, /does not know the operator "nope"/);
+
   // create keeps local edits unless forced
   out = await run('create', '--all');
   assert.match(out, /Kept your local edits to:\s+account_reset_password_email/);
