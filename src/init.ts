@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline/promises';
+import { Writable } from 'node:stream';
 import { listRemoteTemplates } from './api.js';
 import { failure, success } from './color.js';
 import { DEFAULT_ENV, assertEnvName, display, envFilePath, loadConfig, resolveWorkspace } from './config.js';
@@ -29,6 +30,43 @@ function ensureIgnored(root: string): string[] {
 
 const flag = (value: string | boolean | undefined): string | undefined => (typeof value === 'string' ? value : undefined);
 
+type Screen = NodeJS.WritableStream & { columns?: number };
+
+/**
+ * Asks questions in the terminal. An answer to askHidden never appears on
+ * screen, typed or pasted: an access token is a password to the store, and a
+ * terminal is often shared or recorded.
+ */
+export function prompter(keyboard: NodeJS.ReadableStream = process.stdin, screen: Screen = process.stdout) {
+  // Keys show up only because readline writes them back out, so everything it writes goes through here, where it can be dropped.
+  let hidden = false;
+  const output = new Writable({
+    write(chunk: Buffer | string, _encoding, done) {
+      if (!hidden) screen.write(chunk);
+      done();
+    },
+  });
+  Object.defineProperty(output, 'columns', { get: () => screen.columns }); // readline lays out long answers by the terminal's width
+  // No history: the up arrow must not bring the token back at the next question.
+  const rl = readline.createInterface({ input: keyboard, output, terminal: true, historySize: 0 });
+  return {
+    ask: (question: string): Promise<string> => rl.question(question),
+    async askHidden(question: string): Promise<string> {
+      screen.write(question);
+      hidden = true;
+      try {
+        const answer = await rl.question('');
+        // With nothing on screen, the length is how you can tell a paste landed.
+        screen.write(answer.trim() ? `${answer.trim().length} characters entered\n` : 'nothing entered\n');
+        return answer;
+      } finally {
+        hidden = false;
+      }
+    },
+    close: (): void => rl.close(),
+  };
+}
+
 /**
  * Asks for (or takes from flags) one store's credentials, saves them as the
  * named environment and tests the connection. Returns false if the user backed out.
@@ -46,24 +84,24 @@ export async function saveEnvironment(flags: Flags, name: string): Promise<boole
   if (interactive && !process.stdin.isTTY) {
     throw new Error('No terminal to ask questions in. Pass --store-hash and --token instead.');
   }
-  const rl = interactive ? readline.createInterface({ input: process.stdin, output: process.stdout }) : null;
+  const terminal = interactive ? prompter() : null;
   try {
     if (fs.existsSync(envFile) && !flags.force) {
-      if (!rl) throw new Error(`${envLabel} already exists. Pass --force to replace it.`);
-      const answer = await rl.question(`${envLabel} already exists. Replace it? [y/N] `);
+      if (!terminal) throw new Error(`${envLabel} already exists. Pass --force to replace it.`);
+      const answer = await terminal.ask(`${envLabel} already exists. Replace it? [y/N] `);
       if (!/^y(es)?$/i.test(answer.trim())) {
         console.log(`Left ${envLabel} as it was.`);
         return false;
       }
     }
-    if (rl) {
+    if (terminal) {
       console.log(`Setting up the ${name} environment. Have that store's API account open (Settings > Store-level API accounts).\n`);
-      storeHash ??= await rl.question('Store hash, or the API path it shows: ');
-      token ??= await rl.question('Access token: ');
-      channel ??= (await rl.question('Channel ID for channel-specific templates (leave blank for global): ')).trim() || undefined;
+      storeHash ??= await terminal.ask('Store hash, or the API path it shows: ');
+      token ??= await terminal.askHidden('Access token (hidden): ');
+      channel ??= (await terminal.ask('Channel ID for channel-specific templates (leave blank for global): ')).trim() || undefined;
     }
   } finally {
-    rl?.close();
+    terminal?.close();
   }
 
   storeHash = parseStoreHash(storeHash ?? '');

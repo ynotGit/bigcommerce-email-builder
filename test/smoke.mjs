@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import { PassThrough, Writable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
 const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'cli.js');
@@ -96,6 +97,23 @@ try {
   assert.match(fs.readFileSync(path.join(ws, '.env'), 'utf8'), /^BC_STORE_HASH=testhash\nBC_ACCESS_TOKEN=tok\n$/);
   assert.match(fs.readFileSync(path.join(ws, '.gitignore'), 'utf8'), /^\.env$/m);
   assert.match(await fails('init', '--store-hash', 'x', '--token', 'y'), /already exists/);
+  // the questions setup asks: other answers show as they are typed, the access token never reaches the screen
+  const { prompter } = await import('../dist/init.js');
+  const keyboard = new PassThrough();
+  let screen = '';
+  const terminal = prompter(keyboard, new Writable({ write(chunk, _encoding, done) { screen += chunk; done(); } }));
+  let answer = terminal.ask('Store hash: ');
+  keyboard.write('abc123\r');
+  assert.equal(await answer, 'abc123');
+  answer = terminal.askHidden('Access token (hidden): ');
+  keyboard.write('SECRET-TOKEN\r');
+  assert.equal(await answer, 'SECRET-TOKEN');
+  answer = terminal.ask('Channel ID: ');
+  keyboard.write('\x1b[A\r'); // the up arrow, which would bring the token back if answers were remembered
+  assert.equal(await answer, '');
+  terminal.close();
+  screen = screen.replace(/\x1b\[\d*[A-Z]/g, ''); // without the cursor movements
+  assert.equal(screen, 'Store hash: abc123\r\nAccess token (hidden): 12 characters entered\nChannel ID: \r\n');
 
   // create: lists what exists, downloads one by name or path, then all
   assert.match(await run('create'), /Name a template[\s\S]*order-status-update\n\s+password-reset/);

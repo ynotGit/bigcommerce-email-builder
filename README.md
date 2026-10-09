@@ -36,7 +36,8 @@ From the same folder:
     npx email-builder env use staging
 
 `setup` asks for each store's hash and API token, then downloads the email
-templates into a new `theme-emails/` folder. It also gives the preview the
+templates into a new `theme-emails/` folder. The token stays hidden as you
+type or paste it. `setup` also gives the preview the
 first store's name and logo and the products in the `skus` list. `env use`
 chooses which store your commands point at. Nothing else runs until you have
 chosen one.

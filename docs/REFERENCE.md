@@ -245,6 +245,9 @@ caniemail.com has no data for some feature and client pairs (for example
 - A command given an option it does not take stops before doing anything and
   lists the ones it does, so a misspelt `--dry-run` cannot turn into a real
   publish.
+- The access token is never shown on screen when a command asks for it; it
+  reports how many characters it received instead. A token passed with
+  `--token` stays in your shell's history, so keep that for scripts.
 - The tool never requests orders or customers.
 - The preview only listens on localhost.
 
