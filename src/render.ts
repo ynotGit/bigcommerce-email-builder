@@ -129,6 +129,22 @@ function buildHandlebars({ translations, locale, warn }: HelperContext): Handleb
     return out;
   });
 
+  // {{join list ', '}} glues a list together. limit=2 keeps the first two items
+  // and lastSeparator=' and ' goes before the final one. A list missing from the
+  // preview data renders empty, like any missing variable.
+  hbs.registerHelper('join', (...args: unknown[]) => {
+    const { hash } = args.pop() as Handlebars.HelperOptions;
+    const [list, separator] = args as [unknown, string | undefined];
+    if (list === undefined || list === null) return '';
+    if (!Array.isArray(list)) {
+      warn('The join helper was given something that is not a list, which BigCommerce rejects. Check the preview data.');
+      return '';
+    }
+    const items: unknown[] = hash.limit ? list.slice(0, hash.limit) : list;
+    if (!hash.lastSeparator) return items.join(separator);
+    return items.slice(0, -1).join(separator) + hash.lastSeparator + items.slice(-1);
+  });
+
   // Anything this tool has not implemented shows up as a warning instead of a crash.
   hbs.registerHelper('helperMissing', (...args: unknown[]) => {
     if (args.length === 1) return undefined; // a plain missing variable renders empty

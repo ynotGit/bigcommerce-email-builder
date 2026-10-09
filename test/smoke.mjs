@@ -167,6 +167,20 @@ try {
   assert.equal((await conditionals('{{#for 1 500}}.{{/for}}')).html.length, 100, 'a loop stops at 100 rounds, as it does at BigCommerce');
   assert.match((await conditionals("{{#if 1 'nope' 2}}x{{/if}}")).error, /does not know the operator "nope"/);
 
+  // join: a list glued with a separator, with limit and lastSeparator; an HTML separator needs triple braces
+  const listsFile = path.join(ws, 'fixtures', 'account_reset_password_email', 'lists.json');
+  fs.writeFileSync(listsFile, JSON.stringify({ lines: ['1 Main St', 'Austin', 'TX'], name: 'not a list' }));
+  fs.writeFileSync(tpl('account_reset_password_email', 'body.html'), "{{join lines ', '}}|{{{join lines '<br>'}}}|{{join lines '<br>'}}|{{join lines ', ' limit=2}}|{{join lines ', ' lastSeparator=' and '}}|[{{join missing ', '}}]");
+  r = await renderEmail(config, { typeId: 'account_reset_password_email', fixture: 'lists' });
+  assert.equal(r.error, null);
+  assert.equal(r.html, '1 Main St, Austin, TX|1 Main St<br>Austin<br>TX|1 Main St&lt;br&gt;Austin&lt;br&gt;TX|1 Main St, Austin|1 Main St, Austin and TX|[]');
+  assert.deepEqual(r.warnings, [], 'a list missing from the preview data renders empty, like any missing variable');
+  fs.writeFileSync(tpl('account_reset_password_email', 'body.html'), "[{{join name ', '}}]");
+  r = await renderEmail(config, { typeId: 'account_reset_password_email', fixture: 'lists' });
+  assert.equal(r.html, '[]');
+  assert.match(r.warnings.join(' | '), /join helper was given something that is not a list/);
+  fs.rmSync(listsFile);
+
   // create keeps local edits unless forced
   out = await run('create', '--all');
   assert.match(out, /Kept your local edits to:\s+account_reset_password_email/);

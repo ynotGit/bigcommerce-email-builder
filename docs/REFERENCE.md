@@ -150,6 +150,8 @@ Handlebars render.
   comparison (`{{#if order.new_status '===' 'Shipped'}}`), `or`, `for`, and
   `(if ...)` nested inside another helper. They follow BigCommerce's
   open-source Stencil helpers, so an empty object counts as false.
+- `join` works, with `limit` and `lastSeparator`. A list that is missing from
+  the preview data renders empty.
 - Any other BigCommerce helper is not available. The preview highlights where
   it is used and lists a warning; check that part with a test email.
 
