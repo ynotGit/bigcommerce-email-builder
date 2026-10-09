@@ -488,7 +488,7 @@ try {
   fs.mkdirSync(path.join(fresh, 'theme-emails'), { recursive: true });
   fs.writeFileSync(path.join(fresh, 'theme-emails', 'email-builder.json'), JSON.stringify({ skus: ['T1'] })); // as if a teammate committed it
   out = await runIn(fresh, 'setup', 'staging', '--store-hash', 'stagehash', '--token', 'tok');
-  assert.match(out, /Step 1 of 3[\s\S]*Connected[\s\S]*Step 2 of 3: templates, downloaded from staging \(store stagehash\)[\s\S]*Downloaded 2 template[\s\S]*Step 3 of 3[\s\S]*T1 {2}Tote[\s\S]*Setup complete\. Nothing is selected yet, so choose an environment before you start:\s+email-builder env use staging\s+email-builder start/);
+  assert.match(out, /Step 1 of 4[\s\S]*Connected[\s\S]*Step 2 of 4: templates, downloaded from staging \(store stagehash\)[\s\S]*Downloaded 2 template[\s\S]*Step 3 of 4: the store's name and logo for the preview, from staging\n {2}name {5}Stage Store[\s\S]*Step 4 of 4[\s\S]*T1 {2}Tote[\s\S]*Setup complete\. Nothing is selected yet, so choose an environment before you start:\s+email-builder env use staging\s+email-builder start/);
   const freshWs = path.join(fresh, 'theme-emails');
   assert.ok(!fs.existsSync(path.join(freshWs, '.active-env')), 'setup does not select an environment');
   try {
@@ -499,7 +499,9 @@ try {
   }
   assert.ok(fs.existsSync(path.join(freshWs, '.env.staging')));
   assert.ok(fs.existsSync(path.join(freshWs, 'templates', 'global', 'order-status-update', 'body.html')));
-  assert.equal(JSON.parse(fs.readFileSync(path.join(freshWs, 'fixtures', '_global.json'))).store.name, 'Example Store');
+  // the preview starts with the real store's details, so its logo and icons are not broken images
+  const freshStore = JSON.parse(fs.readFileSync(path.join(freshWs, 'fixtures', '_global.json'))).store;
+  assert.deepEqual([freshStore.name, freshStore.cdn_path], ['Stage Store', 'https://cdn11.bigcommerce.com/s-stagehash']);
   assert.ok(fs.existsSync(path.join(freshWs, 'fixtures', '_products.json')));
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(freshWs, 'email-builder.json'))), { skus: ['T1'] }, 'a settings file that is already there is never replaced');
   // rerunning is safe: no questions, local edits kept

@@ -281,7 +281,7 @@ async function setup(flags: Flags, args: string[]): Promise<void> {
     throw new Error('--store-hash and --token describe one store. With several environments, run setup without them and answer the questions for each.');
   }
 
-  console.log(`Step 1 of 3: credentials for ${names.join(', ')}`);
+  console.log(`Step 1 of 4: credentials for ${names.join(', ')}`);
   for (const each of names) {
     if (listEnvNames(root).includes(each) && !flags['store-hash'] && !flags.token) {
       console.log(`${each}: already saved. Rerun "email-builder env add ${each} --force" to replace it.`);
@@ -300,11 +300,18 @@ async function setup(flags: Flags, args: string[]): Promise<void> {
   const config = loadConfig({ ...flags, env: name });
   renameOldNames(config);
 
-  console.log(`\nStep 2 of 3: templates, downloaded from ${name} (store ${config.storeHash})`);
+  console.log(`\nStep 2 of 4: templates, downloaded from ${name} (store ${config.storeHash})`);
   await create(config, { all: true, chained: true }, []);
 
   // Preview data is a nicety: a missing scope or SKU here should not stop the setup.
-  console.log('\nStep 3 of 3: catalog products for the preview');
+  console.log(`\nStep 3 of 4: the store's name and logo for the preview, from ${name}`);
+  try {
+    await fixture(config, {}, ['store']);
+  } catch (err) {
+    console.log(warning(`Skipped: ${(err as Error).message.split('\n')[0]}`));
+  }
+
+  console.log('\nStep 4 of 4: catalog products for the preview');
   if (!readSkus(config).length) {
     console.log(warning(`Skipped: no "skus" list in ${display(settingsPath(config))} yet.`));
   } else {

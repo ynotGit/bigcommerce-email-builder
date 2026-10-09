@@ -34,13 +34,12 @@ From the same folder:
 
     npx email-builder setup staging production
     npx email-builder env use staging
-    npx email-builder fixture store
 
 `setup` asks for each store's hash and API token, then downloads the email
-templates into a new `theme-emails/` folder. `env use` chooses which store
-your commands point at. Nothing else runs until you have chosen one.
-`fixture store` puts that store's name, logo and image paths into the
-preview; without it the logo and icons in the emails show as broken images.
+templates into a new `theme-emails/` folder. It also gives the preview the
+first store's name and logo and the products in the `skus` list. `env use`
+chooses which store your commands point at. Nothing else runs until you have
+chosen one.
 
 Commit `theme-emails/` to your repo. Credentials inside it are gitignored.
 
@@ -78,6 +77,7 @@ another store without switching, add `--env production`.
 | Check for HTML and CSS that email clients do not support | `npx email-builder lint` |
 | Stop that check flagging what BigCommerce's own templates already use | `npx email-builder lint --accept`, once, before you start editing |
 | See which emails differ from the store | `npx email-builder status` |
+| Refresh the store's name and logo in the preview after they change | `npx email-builder fixture store` |
 | Show real products in every email's preview | `npx email-builder fixture sku`, then choose "products" under Preview data. It uses the `skus` list in `theme-emails/email-builder.json`, which starts with SM13, DPB, OFSUC and OTL; edit it for other products |
 
 ## Good to know

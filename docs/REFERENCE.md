@@ -18,7 +18,7 @@ The [README](../README.md) covers the everyday flow. This page has the detail.
 
 | Command | What it does |
 | --- | --- |
-| `setup [environment...]` | Saves credentials for each environment named (`default` if none), downloads every template from the first one, and runs `fixture sku` for the `skus` list. Does not select an environment. Safe to rerun: it skips saved credentials and keeps local edits. Stops before downloading if the credentials fail. |
+| `setup [environment...]` | Saves credentials for each environment named (`default` if none), downloads every template from the first one, then runs `fixture store` and `fixture sku` against it for the preview. Does not select an environment. Safe to rerun: it skips saved credentials and keeps local edits. Stops before downloading if the credentials fail. |
 | `env` | Lists saved environments; `*` marks the selected one. |
 | `env use <name>` | Points every command at that environment until you switch again. |
 | `env add <name>` | Saves one more store's credentials. `--force` replaces existing ones. |
@@ -177,7 +177,8 @@ Two commands add real, non-personal data:
   its name, logo, domain, address and CDN path into `_global.json`. The sample
   customer and anything you added by hand stay. BigCommerce's stock templates
   build the logo and icon URLs from `store.cdn_path`, so those images are
-  broken in the preview until you run this. A store with no logo gets an empty
+  broken in the preview without it. `setup` runs it for the first environment
+  named. A store with no logo gets an empty
   logo URL, so templates fall back to the store name as they do in a real
   email.
   `_global.json` is shared by every environment, so it shows the store you
