@@ -1,0 +1,7 @@
+{
+  "notification": {
+    "subject": "A message about your order #1042",
+    "message": "Your order has been packed and will ship tomorrow morning.",
+    "link": "#reply"
+  }
+}

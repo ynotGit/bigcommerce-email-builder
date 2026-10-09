@@ -1,5 +1,5 @@
 {
-  "reset_password": {
+  "guest_account": {
     "link": "https://example-store.mybigcommerce.com/login.php?action=change_password&c=1&t=sample-token"
   }
 }

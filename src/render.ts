@@ -50,8 +50,8 @@ export function listFixtures(config: Config, typeId: string): string[] {
 const truthy = (value: unknown): boolean =>
   Array.isArray(value) ? value.length > 0 : isObject(value) ? Object.keys(value).length > 0 : Boolean(value);
 
-/** The operators BigCommerce's if accepts between two values. */
-function compare(left: unknown, operator: unknown, right: unknown): boolean {
+/** The operators BigCommerce's if and compare accept between two values. Only if has gtnum. */
+function compare(left: unknown, operator: unknown, right: unknown, helper = 'if'): boolean {
   const [a, b] = [left as number, right as number]; // typed for the ordering operators; any value can arrive
   switch (operator) {
     case '==': return left == right;
@@ -64,13 +64,13 @@ function compare(left: unknown, operator: unknown, right: unknown): boolean {
     case '>=': return a >= b;
     case 'typeof': return typeof left === right;
     case 'gtnum':
+      if (helper !== 'if') break;
       if (typeof left !== 'string' || typeof right !== 'string' || isNaN(Number(left)) || isNaN(Number(right))) {
         throw new Error('"if gtnum" only accepts numbers written as strings.');
       }
       return parseInt(left, 10) > parseInt(right, 10);
-    default:
-      throw new Error(`The if helper does not know the operator "${String(operator)}".`);
   }
+  throw new Error(`The ${helper} helper does not know the operator "${String(operator)}".`);
 }
 
 /** Called inside another helper rather than as a block, a helper gets no fn or inverse. */
@@ -126,6 +126,24 @@ function buildHandlebars({ translations, locale, warn }: HelperContext): Handleb
     const options = args.pop() as HelperCall;
     return answer(this, options, args.some(truthy));
   });
+
+  // {{#compare a b operator='<'}} is if's comparison under an older name.
+  hbs.registerHelper('compare', function (this: unknown, ...args: unknown[]) {
+    const options = args.pop() as Handlebars.HelperOptions;
+    if (args.length < 2) throw new Error('The compare helper needs two values to compare.');
+    return compare(args[0], options.hash.operator ?? '==', args[1], 'compare') ? options.fn(this) : options.inverse(this);
+  });
+
+  // {{#replace '%%DATE%%' message}}1 May{{/replace}} prints the message with every
+  // %%DATE%% swapped for the block. A message without one renders the else branch.
+  hbs.registerHelper('replace', function (this: unknown, needle: unknown, haystack: unknown, options: Handlebars.HelperOptions) {
+    if (typeof needle !== 'string' || typeof haystack !== 'string' || !haystack.includes(needle)) return options.inverse(this);
+    return haystack.replaceAll(needle, () => options.fn(this));
+  });
+
+  // {{#eachIndex list}} walks a list with each entry in {{item}} and its position, from 0, in {{index}}.
+  hbs.registerHelper('eachIndex', (list: unknown, options: Handlebars.HelperOptions) =>
+    Array.isArray(list) ? list.map((item, index) => options.fn({ item, index })).join('') : '');
 
   // {{#for 1 30}} repeats its block with the count in {{$index}}; {{#for 30}} starts at 1.
   // An object after the numbers becomes the block's context. BigCommerce stops at 100 rounds.
@@ -191,13 +209,14 @@ export async function renderEmail(config: Config, request: RenderRequest): Promi
     const useShared = fixture !== 'global' && fs.existsSync(shared)
       && !fs.existsSync(path.join(fixtureDir(config, typeId), `${fixture}.json`));
     const own = useShared ? 'default' : fixture;
-    const context = deepMerge(
-      deepMerge(
-        readJson(path.join(config.fixturesDir, '_global.json'), 'fixtures/_global.json'),
-        readJson(path.join(fixtureDir(config, typeId), `${own}.json`), `fixtures/${folderName(typeId)}/${own}.json`),
-      ),
-      useShared ? readJson(shared, `fixtures/_${fixture}.json`) : {},
-    ) as Json;
+    // Emails do not all read the same data in the same shape, so a shared fixture can
+    // hold a part for one email alone under "@" and its folder name: "@order-email".
+    const extra = useShared ? readJson(shared, `fixtures/_${fixture}.json`) : {};
+    const context = [
+      readJson(path.join(fixtureDir(config, typeId), `${own}.json`), `fixtures/${folderName(typeId)}/${own}.json`),
+      Object.fromEntries(Object.entries(extra).filter(([key]) => !key.startsWith('@'))),
+      extra[`@${folderName(typeId)}`],
+    ].reduce(deepMerge, readJson(path.join(config.fixturesDir, '_global.json'), 'fixtures/_global.json')) as Json;
     // The phrases on disk are what would be published, so they win over fixture data.
     context.translations = template.translations;
     const store = context.store as { language?: { code?: string } } | undefined;

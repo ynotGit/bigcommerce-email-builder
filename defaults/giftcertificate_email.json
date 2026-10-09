@@ -1,0 +1,13 @@
+{
+  "certificate": {
+    "to_name": "Sam Lee",
+    "from_name": "Jordan Rivera",
+    "from_email": "jordan@example.com",
+    "amount": "$50.00",
+    "expiry_date": {
+      "value": 1822521600,
+      "formatted": "10/03/2027"
+    },
+    "redeem_link": "#redeem"
+  }
+}

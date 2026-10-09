@@ -1,0 +1,114 @@
+{
+  "order": {
+    "id": 1042,
+    "customer_id": 17,
+    "account_order_status_url": "#order-status",
+    "customer_message": "Please leave the parcel with a neighbour if I am out.",
+    "backorder_shipping_expectation_message": "",
+    "products": [
+      {
+        "name": "Canvas Tote Bag",
+        "sku": "TOTE-NAT",
+        "quantity": 2,
+        "thumbnail": "",
+        "type": "physical",
+        "brand": "Example Brand",
+        "price": {
+          "value": 32,
+          "formatted": "$32.00"
+        },
+        "total": {
+          "value": 64,
+          "formatted": "$64.00"
+        },
+        "options": [],
+        "attribute_lines": [
+          "Color: Natural"
+        ],
+        "configurable_fields": [],
+        "address_lines": [
+          "Jordan Rivera",
+          "12 Sample Street",
+          "Austin, Texas 78701",
+          "United States"
+        ]
+      },
+      {
+        "name": "Enamel Mug",
+        "sku": "MUG-BLU",
+        "quantity": 1,
+        "thumbnail": "",
+        "type": "physical",
+        "brand": "Example Brand",
+        "price": {
+          "value": 22.5,
+          "formatted": "$22.50"
+        },
+        "total": {
+          "value": 22.5,
+          "formatted": "$22.50"
+        },
+        "options": [],
+        "attribute_lines": [],
+        "configurable_fields": []
+      }
+    ],
+    "total_rows": [
+      {
+        "label": "Subtotal",
+        "price": {
+          "value": 86.5,
+          "formatted": "$86.50"
+        }
+      },
+      {
+        "label": "Shipping",
+        "price": {
+          "value": 0,
+          "formatted": "$0.00"
+        }
+      },
+      {
+        "label": "Grand total",
+        "price": {
+          "value": 86.5,
+          "formatted": "$86.50"
+        }
+      }
+    ],
+    "payment": {
+      "provider_name": "Credit Card",
+      "is_test": false,
+      "gateway_amount": {
+        "value": 0,
+        "formatted": "$0.00"
+      },
+      "offline_payment_message": ""
+    },
+    "shipping": {
+      "methods": [
+        "Free Shipping"
+      ]
+    },
+    "pickup_methods": "",
+    "billing": {
+      "is_managed_by_amazon": false,
+      "address": {
+        "first_name": "Jordan",
+        "last_name": "Rivera",
+        "company": "Example Company",
+        "address_lines": [
+          "12 Sample Street",
+          "Suite 4"
+        ],
+        "city": "Austin",
+        "state": "Texas",
+        "zip": "78701",
+        "country": "United States",
+        "phone": "512-555-0142",
+        "custom_fields": []
+      }
+    },
+    "meta": {}
+  }
+}

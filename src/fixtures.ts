@@ -5,7 +5,7 @@ import { bc } from './api.js';
 import { PACKAGE_ROOT } from './config.js';
 import { folderName } from './names.js';
 import { fixtureDir, sharedFixtureFile } from './render.js';
-import type { Config, EmailProduct, V2Store, V3Product, V3Variant } from './types.js';
+import type { Config, EmailInvoiceProduct, EmailProduct, Formatted, V2Store, V3Product, V3Variant } from './types.js';
 
 const defaultsDir = path.join(PACKAGE_ROOT, 'defaults');
 
@@ -25,14 +25,22 @@ export function ensureDefaultFixtures(config: Config, typeIds: string[]): string
   }
   for (const typeId of typeIds) {
     const file = path.join(fixtureDir(config, typeId), 'default.json');
-    if (fs.existsSync(file)) continue;
     const shipped = path.join(defaultsDir, `${typeId}.json`);
+    // An empty one is the placeholder written before this email had sample data, so it is filled in too.
+    const placeholder = fs.existsSync(file) && fs.existsSync(shipped) && fs.readFileSync(file, 'utf8').trim() === '{}';
+    if (fs.existsSync(file) && !placeholder) continue;
     fs.mkdirSync(path.dirname(file), { recursive: true });
     if (fs.existsSync(shipped)) fs.copyFileSync(shipped, file);
     else fs.writeFileSync(file, '{}\n');
     created.push(`fixtures/${folderName(typeId)}/default.json`);
   }
   return created;
+}
+
+/** An email's sample data: its default.json, or the one this tool ships if that is gone. */
+function sampleData(config: Config, typeId: string): Json {
+  const file = [path.join(fixtureDir(config, typeId), 'default.json'), path.join(defaultsDir, `${typeId}.json`)].find((f) => fs.existsSync(f));
+  return file ? (JSON.parse(fs.readFileSync(file, 'utf8')) as Json) : {};
 }
 
 function money(amount: string | number | undefined, currency: string | undefined): string {
@@ -93,6 +101,9 @@ async function productForSku(config: Config, sku: string, currency: string, bran
   };
 }
 
+/** The order email is the one that reads an order's products in a shape of its own. */
+const ORDER_EMAIL = 'invoice_email';
+
 interface SkuFixtureOptions {
   /** Write one email's own fixture instead of the shared one every email can use. */
   typeId?: string;
@@ -121,24 +132,44 @@ export async function buildSkuFixture(config: Config, skus: string[], options: S
   const name = options.name || 'products';
   const currency = (await fetchStore(config)).currency || 'USD';
   const brands = new Map<number, string>();
+  const priced = (value: number): Formatted<number> => ({ value, formatted: money(value, currency) });
   const products: EmailProduct[] = [];
+  const invoiced: EmailInvoiceProduct[] = [];
   let total = 0;
   for (const sku of skus) {
     const { line, value } = await productForSku(config, sku, currency, brands);
     products.push(line);
+    invoiced.push({
+      name: line.name, sku: line.sku, type: 'physical', brand: line.brand, thumbnail: line.thumbnail, quantity: line.quantity,
+      price: priced(value), total: priced(value * line.quantity), options: [],
+      attribute_lines: line.attribute_lines.map((attribute) => `${attribute.name}: ${attribute.value}`), configurable_fields: [],
+    });
     total += value * line.quantity;
   }
+  // The sample order's first line says where it ships to; the real products keep that address.
+  const sampleOrder = sampleData(config, ORDER_EMAIL).order;
+  const [sampleLine] = isObject(sampleOrder) && Array.isArray(sampleOrder.products) ? (sampleOrder.products as EmailInvoiceProduct[]) : [];
+  if (invoiced[0] && sampleLine?.address_lines) invoiced[0].address_lines = sampleLine.address_lines;
 
   // The products, in each place an email reads them from: an order, a review request and a return.
   const placed: Record<string, Json> = {
-    order: { products, unshipped_products: [], downloadable_products: [], total: { value: total, formatted: money(total, currency) } },
+    order: { products, unshipped_products: [], downloadable_products: [], total: priced(total) },
     review: { products: products.map((product) => ({ ...product, link: '#review' })) },
     return: { products, product: products[0] },
+  };
+  // The order email reads the same order in a shape of its own, with the totals as rows.
+  const invoice: Json = {
+    products: invoiced,
+    total_rows: [
+      { label: 'Subtotal', price: priced(total) },
+      { label: 'Shipping', price: priced(0) },
+      { label: 'Grand total', price: priced(total) },
+    ],
   };
 
   if (!typeId) {
     const file = sharedFixtureFile(config, name);
-    writeJson(file, placed);
+    writeJson(file, { ...placed, [`@${folderName(ORDER_EMAIL)}`]: { order: invoice } });
     const shadowedBy = fs.existsSync(config.fixturesDir)
       ? fs.readdirSync(config.fixturesDir).filter((dir) => fs.existsSync(path.join(config.fixturesDir, dir, `${name}.json`))).sort()
       : [];
@@ -146,11 +177,10 @@ export async function buildSkuFixture(config: Config, skus: string[], options: S
   }
 
   // One email's own fixture starts from its sample data so everything else stays filled in.
-  const dir = fixtureDir(config, typeId);
-  const base = [path.join(dir, 'default.json'), path.join(defaultsDir, `${typeId}.json`)].find((f) => fs.existsSync(f));
-  const data = base ? (JSON.parse(fs.readFileSync(base, 'utf8')) as Json) : {};
+  const data = sampleData(config, typeId);
+  if (typeId === ORDER_EMAIL) Object.assign(placed.order ?? {}, invoice);
   for (const [key, value] of Object.entries(placed)) data[key] = { ...(isObject(data[key]) ? data[key] : {}), ...value };
-  const file = path.join(dir, `${name}.json`);
+  const file = path.join(fixtureDir(config, typeId), `${name}.json`);
   writeJson(file, data);
   return { file, products, shadowedBy: [] };
 }

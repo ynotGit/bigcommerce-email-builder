@@ -148,10 +148,16 @@ with a leading underscore, such as `_products.json`, is shared: every email
 offers it, and it is merged over that email's `default.json`. The shape for each email is in BigCommerce's
 [email object reference](https://docs.bigcommerce.com/developer/docs/admin/store-configuration/emails/email-object-reference/global-email-object).
 
-Starter fixtures ship for `order-status-update` and `password-reset`. Other emails start with an empty fixture to
-fill in from that reference.
+Every email starts with sample data in its `default.json`: a made-up
+customer, order, billing address, payment and so on, covering what the stock
+template reads. Edit it freely. A `default.json` that an older version of the
+tool left empty (`{}`) is filled in the next time you run `start`.
 
-The customer, order number, tracking details and store name are made up.
+Emails do not all read the same data in the same shape. The order email, for
+one, wants a product's price as an object where the others want text. So a
+shared fixture can hold a part for one email alone, under `@` and that
+email's folder name: `"@order-email": { "order": { ... } }` is merged last,
+and only for the order email.
 
 Two commands add real, non-personal data:
 
@@ -160,8 +166,9 @@ Two commands add real, non-personal data:
   the sum of the prices. Choose "products" under Preview data on any email:
   the products show wherever that email lists them (an order, a review
   request or a return), and an email with no product list looks the same as
-  with "default". An email that has a `products.json` of its own keeps using
-  that one; `fixture sku --template <email>` writes such a file.
+  with "default". The order email also gets its totals rows recalculated. An
+  email that has a `products.json` of its own keeps using that one;
+  `fixture sku --template <email>` writes such a file.
 - `fixture store` reads the selected environment's store profile and writes
   its name, logo, domain, address and CDN path into `_global.json`. The sample
   customer and anything you added by hand stay. BigCommerce's stock templates
@@ -190,6 +197,8 @@ Handlebars render.
   open-source Stencil helpers, so an empty object counts as false.
 - `join` works, with `limit` and `lastSeparator`. A list that is missing from
   the preview data renders empty.
+- `compare`, `replace` and `eachIndex` work; the stock order email uses them
+  in its product rows.
 - Any other BigCommerce helper is not available. The preview highlights where
   it is used and lists a warning; check that part with a test email.
 

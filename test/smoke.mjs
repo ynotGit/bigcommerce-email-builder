@@ -28,7 +28,7 @@ const remote = {
   account_reset_password_email: {
     type_id: 'account_reset_password_email',
     subject: 'Reset your password at {{store.name}}',
-    body: '<p>{{lang "reset_password" name=store.name}}</p><a href="{{account.reset_password_link}}">{{account.reset_password_link}}</a>',
+    body: '<p>{{lang "reset_password" name=store.name}}</p><a href="{{reset_password.link}}">{{reset_password.link}}</a>',
     translations: [{ locale: 'en', keys: { reset_password: 'To change your password at {name} click:' } }],
   },
 };
@@ -165,24 +165,38 @@ try {
     "{{#or (if customer.first_name '===' 'Nope') (if misc.year '>' 2000)}}either{{else}}neither{{/or}}",
     "{{#or (if customer.first_name '===' 'Nope') missing}}either{{else}}neither{{/or}}",
     "{{#unless customer.first_name '===' 'Jordan'}}stranger{{else}}known{{/unless}}",
-    "{{#if account}}account{{/if}}{{#if missing}}never{{/if}}{{#unless missing}}absent{{/unless}}",
+    "{{#if reset_password}}reset{{/if}}{{#if missing}}never{{/if}}{{#unless missing}}absent{{/unless}}",
     "{{#if 0}}zero{{else}}no zero{{/if}}",
     "{{#if store.name 'Example Store' operator='!='}}renamed{{else}}as shipped{{/if}}",
     "{{#for 1 3}}[{{$index}}]{{/for}}{{#for 2}}({{$index}}){{/for}}{{#for 1 2 customer}}<{{first_name}}{{$index}}>{{/for}}",
   ].join('|'));
   assert.equal(r.error, null);
-  assert.equal(r.html, 'same|new|either|neither|known|accountabsent|no zero|as shipped|[1][2][3](1)(2)<Jordan1><Jordan2>');
+  assert.equal(r.html, 'same|new|either|neither|known|resetabsent|no zero|as shipped|[1][2][3](1)(2)<Jordan1><Jordan2>');
   assert.deepEqual(r.warnings, []);
   assert.equal((await conditionals('{{#for 1 500}}.{{/for}}')).html.length, 100, 'a loop stops at 100 rounds, as it does at BigCommerce');
   assert.match((await conditionals("{{#if 1 'nope' 2}}x{{/if}}")).error, /does not know the operator "nope"/);
 
+  // the older helpers BigCommerce's stock order email still uses: compare and replace (eachIndex is checked with the lists below)
+  r = await conditionals([
+    "{{#compare misc.year 2000 operator='>'}}later{{else}}earlier{{/compare}}",
+    "{{#compare store.name 'Example Store'}}same{{/compare}}",
+    "{{#compare customer 'array' operator='typeof'}}list{{else}}not a list{{/compare}}",
+    "{{#replace '%%DATE%%' 'Ships %%DATE%%, %%DATE%%'}}{{misc.year}}{{else}}no date{{/replace}}",
+    "{{#replace '%%DATE%%' store.name}}{{misc.year}}{{else}}{{store.name}}{{/replace}}",
+  ].join('|'));
+  assert.equal(r.error, null);
+  assert.equal(r.html, 'later|same|not a list|Ships 2026, 2026|Example Store');
+  assert.deepEqual(r.warnings, []);
+  assert.match((await conditionals("{{#compare '2' '1' operator='gtnum'}}x{{/compare}}")).error, /compare helper does not know the operator "gtnum"/);
+  assert.match((await conditionals('{{#compare 1}}x{{/compare}}')).error, /compare helper needs two values/);
+
   // join: a list glued with a separator, with limit and lastSeparator; an HTML separator needs triple braces
   const listsFile = path.join(ws, 'fixtures', 'password-reset', 'lists.json');
   fs.writeFileSync(listsFile, JSON.stringify({ lines: ['1 Main St', 'Austin', 'TX'], name: 'not a list' }));
-  fs.writeFileSync(tpl('password-reset', 'body.html'), "{{join lines ', '}}|{{{join lines '<br>'}}}|{{join lines '<br>'}}|{{join lines ', ' limit=2}}|{{join lines ', ' lastSeparator=' and '}}|[{{join missing ', '}}]");
+  fs.writeFileSync(tpl('password-reset', 'body.html'), "{{join lines ', '}}|{{{join lines '<br>'}}}|{{join lines '<br>'}}|{{join lines ', ' limit=2}}|{{join lines ', ' lastSeparator=' and '}}|[{{join missing ', '}}]|{{#eachIndex lines}}{{index}}={{item}} {{/eachIndex}}[{{#eachIndex missing}}never{{/eachIndex}}]");
   r = await renderEmail(config, { typeId: 'account_reset_password_email', fixture: 'lists' });
   assert.equal(r.error, null);
-  assert.equal(r.html, '1 Main St, Austin, TX|1 Main St<br>Austin<br>TX|1 Main St&lt;br&gt;Austin&lt;br&gt;TX|1 Main St, Austin|1 Main St, Austin and TX|[]');
+  assert.equal(r.html, '1 Main St, Austin, TX|1 Main St<br>Austin<br>TX|1 Main St&lt;br&gt;Austin&lt;br&gt;TX|1 Main St, Austin|1 Main St, Austin and TX|[]|0=1 Main St 1=Austin 2=TX []');
   assert.deepEqual(r.warnings, [], 'a list missing from the preview data renders empty, like any missing variable');
   fs.writeFileSync(tpl('password-reset', 'body.html'), "[{{join name ', '}}]");
   r = await renderEmail(config, { typeId: 'account_reset_password_email', fixture: 'lists' });
@@ -303,7 +317,7 @@ try {
   assert.match(out, /T1 {2}Tote {2}£18\.50[\s\S]*SHIRT-RED-M {2}Shirt {2}£30\.00[\s\S]*Wrote theme-emails\/fixtures\/_products\.json\nChoose "products" under Preview data on any email to see them/);
   // one shared file holds only the products, in each place an email reads them from
   const fx = JSON.parse(fs.readFileSync(path.join(ws, 'fixtures', '_products.json')));
-  assert.deepEqual(Object.keys(fx), ['order', 'review', 'return']);
+  assert.deepEqual(Object.keys(fx), ['order', 'review', 'return', '@order-email']);
   assert.deepEqual(fx.review.products.map((p) => [p.sku, p.link]), [['T1', '#review'], ['SHIRT-RED-M', '#review']]);
   assert.deepEqual(fx.return.products, fx.order.products);
   assert.equal(fx.return.product.sku, 'T1');
@@ -311,9 +325,24 @@ try {
   assert.deepEqual(fx.order.products[1].attribute_lines, [{ name: 'Color', value: 'Red' }, { name: 'Size', value: 'M' }]);
   assert.equal(fx.order.products[1].thumbnail, 'https://cdn.example/shirt-red.jpg');
   assert.equal(fx.order.total.formatted, '£48.50');
+  // the order email reads prices as objects, attributes as text and the totals as rows, so it gets a part of its own
+  const invoice = fx['@order-email'].order;
+  assert.deepEqual(invoice.products[1], {
+    name: 'Shirt', sku: 'SHIRT-RED-M', type: 'physical', brand: '', thumbnail: 'https://cdn.example/shirt-red.jpg', quantity: 1,
+    price: { value: 30, formatted: '£30.00' }, total: { value: 30, formatted: '£30.00' }, options: [],
+    attribute_lines: ['Color: Red', 'Size: M'], configurable_fields: [],
+  });
+  assert.deepEqual(invoice.products[0].address_lines, ['Jordan Rivera', '12 Sample Street', 'Austin, Texas 78701', 'United States'], 'the sample shipping address is kept');
+  assert.deepEqual(invoice.total_rows.map((row) => [row.label, row.price.formatted]), [['Subtotal', '£48.50'], ['Shipping', '£0.00'], ['Grand total', '£48.50']]);
+  // only the email named after the @ gets that part, and no @ key reaches a template
+  const onlyFile = path.join(ws, 'fixtures', '_only.json');
+  fs.writeFileSync(onlyFile, JSON.stringify({ note: 'all', '@password-reset': { note: 'mine' }, '@order-status-update': { note: 'theirs' } }));
+  fs.writeFileSync(tpl('password-reset', 'body.html'), '{{note}}{{#each this}}{{#if @key \'===\' \'@password-reset\'}}leaked{{/if}}{{/each}}');
+  assert.equal((await renderEmail(config, { typeId: 'account_reset_password_email', fixture: 'only' })).html, 'mine');
+  fs.rmSync(onlyFile);
   // every email offers it, and it is laid over that email's own default data
   assert.deepEqual(listFixtures(config, 'account_reset_password_email'), ['default', 'products']);
-  fs.writeFileSync(tpl('password-reset', 'body.html'), '{{#each order.products}}{{sku}} {{/each}}{{#each review.products}}{{link}} {{/each}}{{return.product.name}} {{account.reset_password_link}}');
+  fs.writeFileSync(tpl('password-reset', 'body.html'), '{{#each order.products}}{{sku}} {{/each}}{{#each review.products}}{{link}} {{/each}}{{return.product.name}} {{reset_password.link}}');
   r = await renderEmail(config, { typeId: 'account_reset_password_email', fixture: 'products' });
   assert.equal(r.html, 'T1 SHIRT-RED-M #review #review Tote https://example-store.mybigcommerce.com/login.php?action&#x3D;change_password&amp;c&#x3D;1&amp;t&#x3D;sample-token');
   // --template writes one email's own file instead, starting from its sample data
@@ -321,7 +350,7 @@ try {
   assert.match(out, /Wrote theme-emails\/fixtures\/password-reset\/mine\.json\nChoose "mine" under Preview data on password-reset/);
   const mine = JSON.parse(fs.readFileSync(path.join(ws, 'fixtures', 'password-reset', 'mine.json')));
   assert.equal(mine.order.products.length, 2);
-  assert.match(mine.account.reset_password_link, /sample-token/);
+  assert.match(mine.reset_password.link, /sample-token/);
   // an email with a file of the same name keeps using its own, and the command says so
   out = await run('fixture', 'sku', '--name', 'mine');
   assert.match(out, /These emails have a mine\.json of their own and keep using it\. Delete it to use the shared one:\n {2}password-reset\n/);
@@ -454,6 +483,21 @@ try {
   assert.deepEqual(fs.readdirSync(path.join(freshWs, 'templates', 'global')), ['order-status-update', 'password-reset']);
   assert.ok(fs.existsSync(path.join(freshWs, 'fixtures', 'order-status-update', 'default.json')));
   assert.doesNotMatch(await runIn(fresh, 'status'), /Renamed/);
+  // every email that reads data of its own ships with sample data, filed under a type ID the tool knows
+  const { folderName } = await import('../dist/names.js');
+  const { ensureDefaultFixtures } = await import('../dist/fixtures.js');
+  const samples = fs.readdirSync(path.join(path.dirname(cli), '..', 'defaults')).filter((f) => !['_global.json', 'email-builder.json'].includes(f)).map((f) => f.slice(0, -5));
+  assert.equal(samples.length, 14);
+  for (const typeId of samples) assert.notEqual(folderName(typeId), typeId, `${typeId} is not an email this tool knows`);
+  // a project from before an email had sample data holds an empty placeholder, which is filled in; edited data is kept
+  const freshConfig = { ...config, root: freshWs, fixturesDir: path.join(freshWs, 'fixtures') };
+  const placeholder = path.join(freshWs, 'fixtures', 'password-reset', 'default.json');
+  fs.writeFileSync(placeholder, '{}\n');
+  fs.writeFileSync(path.join(freshWs, 'fixtures', 'order-status-update', 'default.json'), '{ "order": { "id": 7 } }');
+  assert.deepEqual(ensureDefaultFixtures(freshConfig, ['account_reset_password_email', 'combined_order_status_email', 'createaccount_email']), ['fixtures/password-reset/default.json', 'fixtures/account-created/default.json']);
+  assert.match(JSON.parse(fs.readFileSync(placeholder, 'utf8')).reset_password.link, /sample-token/);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(freshWs, 'fixtures', 'order-status-update', 'default.json'), 'utf8')).order.id, 7);
+  assert.deepEqual(ensureDefaultFixtures(freshConfig, ['account_reset_password_email', 'createaccount_email']), [], 'an email with no sample data keeps its empty file');
   // bad credentials stop it before anything is downloaded
   const bad = fs.mkdtempSync(path.join(os.tmpdir(), 'email-builder-bad-'));
   try {

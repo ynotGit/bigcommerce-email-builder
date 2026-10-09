@@ -1,0 +1,22 @@
+{
+  "order": {
+    "id": 1042
+  },
+  "return": {
+    "status": {
+      "value": "approved",
+      "formatted": "Approved"
+    },
+    "reason": "Received the wrong item",
+    "action": "Exchange",
+    "comments": "I ordered the natural tote and the black one arrived.",
+    "link": "#return-status",
+    "instructions": "<p>Post the item back within 14 days using the prepaid label we emailed you.</p>",
+    "product": {
+      "name": "Canvas Tote Bag",
+      "sku": "TOTE-NAT",
+      "quantity": 1,
+      "thumbnail": ""
+    }
+  }
+}

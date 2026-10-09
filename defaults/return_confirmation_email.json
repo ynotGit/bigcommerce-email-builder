@@ -1,0 +1,19 @@
+{
+  "order": {
+    "id": 1042
+  },
+  "return": {
+    "reason": "Received the wrong item",
+    "action": "Exchange",
+    "comments": "I ordered the natural tote and the black one arrived.",
+    "link": "#return-status",
+    "products": [
+      {
+        "name": "Canvas Tote Bag",
+        "sku": "TOTE-NAT",
+        "quantity": 1,
+        "thumbnail": ""
+      }
+    ]
+  }
+}

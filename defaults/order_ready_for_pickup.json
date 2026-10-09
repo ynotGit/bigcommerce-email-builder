@@ -1,0 +1,108 @@
+{
+  "order": {
+    "id": 1042,
+    "customer_id": 17,
+    "account_order_status_url": "#order-status",
+    "products": [
+      {
+        "name": "Canvas Tote Bag",
+        "sku": "TOTE-NAT",
+        "quantity": 2,
+        "thumbnail": ""
+      },
+      {
+        "name": "Enamel Mug",
+        "sku": "MUG-BLU",
+        "quantity": 1,
+        "thumbnail": ""
+      }
+    ],
+    "pickup": {
+      "name": "In-store pickup",
+      "instructions": "Bring your order number and a photo ID to the front desk.",
+      "phone": "512-555-0100",
+      "email": "pickup@example.com",
+      "location": {
+        "name": "Example Store Downtown",
+        "address_lines": [
+          "123 Example Street"
+        ],
+        "city": "Austin",
+        "state": "Texas",
+        "zip": "78701",
+        "country": "United States"
+      },
+      "operating_hours": {
+        "monday": {
+          "is_open": true,
+          "opening_time": {
+            "value": "09:00",
+            "formatted": "9:00 AM"
+          },
+          "closing_time": {
+            "value": "17:30",
+            "formatted": "5:30 PM"
+          }
+        },
+        "tuesday": {
+          "is_open": true,
+          "opening_time": {
+            "value": "09:00",
+            "formatted": "9:00 AM"
+          },
+          "closing_time": {
+            "value": "17:30",
+            "formatted": "5:30 PM"
+          }
+        },
+        "wednesday": {
+          "is_open": true,
+          "opening_time": {
+            "value": "09:00",
+            "formatted": "9:00 AM"
+          },
+          "closing_time": {
+            "value": "17:30",
+            "formatted": "5:30 PM"
+          }
+        },
+        "thursday": {
+          "is_open": true,
+          "opening_time": {
+            "value": "09:00",
+            "formatted": "9:00 AM"
+          },
+          "closing_time": {
+            "value": "17:30",
+            "formatted": "5:30 PM"
+          }
+        },
+        "friday": {
+          "is_open": true,
+          "opening_time": {
+            "value": "09:00",
+            "formatted": "9:00 AM"
+          },
+          "closing_time": {
+            "value": "17:30",
+            "formatted": "5:30 PM"
+          }
+        },
+        "saturday": {
+          "is_open": true,
+          "opening_time": {
+            "value": "10:00",
+            "formatted": "10:00 AM"
+          },
+          "closing_time": {
+            "value": "16:00",
+            "formatted": "4:00 PM"
+          }
+        },
+        "sunday": {
+          "is_open": false
+        }
+      }
+    }
+  }
+}

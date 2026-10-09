@@ -305,6 +305,9 @@ async function start(config: Config, args: string[]): Promise<void> {
   if (typeId && !local.includes(typeId)) {
     throw new Error(`No local template called ${folderName(typeId)}. Download it first: email-builder create ${folderName(typeId)}`);
   }
+  // Emails that gained sample data in a newer version of the tool get it here.
+  const sampled = ensureDefaultFixtures(config, local);
+  if (sampled.length) console.log(`Added sample preview data for ${sampled.length} email(s) in ${display(config.fixturesDir)}.\n`);
   const { url } = await startServer(config);
   console.log(`Starting email-builder at ${url}${typeId ? `/#type=${typeId}` : ''}`);
   console.log(`Environment ${config.envName}. Previewing ${local.length} template(s) from ${display(config.templatesDir)}. Press Ctrl+C to stop.`);

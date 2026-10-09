@@ -1,0 +1,18 @@
+{
+  "review": {
+    "products": [
+      {
+        "name": "Canvas Tote Bag",
+        "sku": "TOTE-NAT",
+        "thumbnail": "",
+        "link": "#review"
+      },
+      {
+        "name": "Enamel Mug",
+        "sku": "MUG-BLU",
+        "thumbnail": "",
+        "link": "#review"
+      }
+    ]
+  }
+}

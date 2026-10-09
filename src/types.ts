@@ -68,6 +68,24 @@ export interface EmailProduct {
   attribute_lines: AttributeLine[];
 }
 
+/** A line in the order email, which prices and describes a product differently from the other emails. */
+export interface EmailInvoiceProduct {
+  name: string;
+  sku: string;
+  type: 'physical' | 'digital';
+  brand: string;
+  thumbnail: string;
+  quantity: number;
+  price: Formatted<number>;
+  total: Formatted<number>;
+  options: string[];
+  /** Already text here, "Color: Red", where the other emails get a name and a value. */
+  attribute_lines: string[];
+  configurable_fields: AttributeLine[];
+  /** Where the line ships to. Absent on a line that shares the address above it. */
+  address_lines?: string[];
+}
+
 export interface EmailDownloadableProduct {
   name: string;
   options: string | null;
