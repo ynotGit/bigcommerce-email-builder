@@ -265,6 +265,14 @@ document.querySelectorAll('.widths button').forEach((b) => {
 
 const events = new EventSource('/events');
 events.addEventListener('change', () => refresh(false));
+// Each run of the preview server names itself when the stream opens. A new name after reconnecting means it was
+// restarted, perhaps as a newer version of the tool, so the page loads again from it.
+let server = null;
+events.addEventListener('hello', (e) => {
+  if (server && server !== e.data) return location.reload();
+  if (server) refresh(false); // the same server after a dropped connection: catch up on anything missed
+  server = e.data;
+});
 events.onopen = () => { $('live').classList.remove('off'); $('live').textContent = 'Reloads when you save'; };
 events.onerror = () => { $('live').classList.add('off'); $('live').textContent = 'Preview server stopped'; };
 

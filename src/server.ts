@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -36,6 +37,9 @@ function templateSummary(config: Config) {
 
 export function startServer(config: Config): Promise<PreviewServer> {
   const clients = new Set<http.ServerResponse>();
+  // Names this run of the server. An open tab is told it on connecting, and loads
+  // the page again when the name changes, which is how it notices a restart.
+  const run = randomUUID();
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
@@ -79,7 +83,7 @@ export function startServer(config: Config): Promise<PreviewServer> {
       }
       if (url.pathname === '/events') {
         res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
-        res.write('retry: 1000\n\n');
+        res.write(`retry: 1000\nevent: hello\ndata: ${run}\n\n`);
         clients.add(res);
         req.on('close', () => clients.delete(res));
         return undefined;
@@ -99,18 +103,32 @@ export function startServer(config: Config): Promise<PreviewServer> {
     }, 60);
   };
   const watchers: fs.FSWatcher[] = [];
-  fs.mkdirSync(config.templatesDir, { recursive: true });
-  fs.mkdirSync(config.fixturesDir, { recursive: true });
-  for (const target of [config.templatesDir, config.fixturesDir, settingsPath(config)]) {
-    if (!fs.existsSync(target)) continue;
-    const recursive = fs.statSync(target).isDirectory();
-    watchers.push(fs.watch(target, { recursive }, notify));
-  }
+  const watch = (): void => {
+    fs.mkdirSync(config.templatesDir, { recursive: true });
+    fs.mkdirSync(config.fixturesDir, { recursive: true });
+    for (const target of [config.templatesDir, config.fixturesDir, settingsPath(config)]) {
+      if (!fs.existsSync(target)) continue;
+      const recursive = fs.statSync(target).isDirectory();
+      watchers.push(fs.watch(target, { recursive }, notify));
+    }
+  };
 
   return new Promise((resolve, reject) => {
-    server.once('error', reject);
+    server.once('error', (err: NodeJS.ErrnoException) => {
+      if (err.code !== 'EADDRINUSE') return reject(err);
+      reject(new Error(
+        `Port ${config.port} is already in use, most likely by a preview you started earlier. Stop that one first (Ctrl+C in its terminal), or run this one on another port:\n\n  email-builder start --port ${config.port + 1}`,
+      ));
+    });
     // Bound to localhost only: this is a development tool, not something to expose on a network.
     server.listen(config.port, '127.0.0.1', () => {
+      // Watching starts only now: a watcher keeps the command running, and one whose server never started has to exit.
+      try {
+        watch();
+      } catch (err) {
+        server.close();
+        return reject(err);
+      }
       const address = server.address();
       const port = typeof address === 'object' && address ? address.port : config.port;
       resolve({

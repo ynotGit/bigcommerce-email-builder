@@ -495,11 +495,17 @@ try {
   // live reload fires on save
   const sse = await fetch(`${server.url}/events`);
   const reader = sse.body.getReader();
-  await reader.read(); // retry preamble
+  // the stream opens by naming this run of the server, which is how an open tab notices a restart and reloads itself
+  assert.match(new TextDecoder().decode((await reader.read()).value), /^retry: 1000\nevent: hello\ndata: [\w-]+\n\n$/);
   setTimeout(() => fs.appendFileSync(bodyFile, '<!-- edit -->'), 100);
   const chunk = await Promise.race([reader.read(), new Promise((_, rej) => setTimeout(() => rej(new Error('no reload event')), 3000))]);
   assert.match(new TextDecoder().decode(chunk.value), /event: change/);
   await reader.cancel();
+  // a second preview on the same port says why and exits, instead of sitting there while the browser shows the first one
+  const { port } = new URL(server.url);
+  const clash = await exec('node', [cli, 'start', '--port', port], { cwd, env, timeout: 10000 }).catch((e) => e);
+  assert.equal(clash.code, 1, 'the command ends by itself');
+  assert.match(clash.stderr, new RegExp(`Port ${port} is already in use, most likely by a preview you started earlier\\.[\\s\\S]*email-builder start --port ${Number(port) + 1}`));
   server.close();
 
   // setup: one command on a fresh project chains credentials, environment, templates and preview data

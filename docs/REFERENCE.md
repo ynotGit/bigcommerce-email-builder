@@ -22,7 +22,7 @@ The [README](../README.md) covers the everyday flow. This page has the detail.
 | `env` | Lists saved environments; `*` marks the selected one. |
 | `env use <name>` | Points every command at that environment until you switch again. |
 | `env add <name>` | Saves one more store's credentials. `--force` replaces existing ones. |
-| `start [template]` | Preview server with live reload. `--port` changes the port. |
+| `start [template]` | Preview server with live reload. `--port` changes the port; if the port is taken, it says so and stops. A tab left open loads the page again when the preview is restarted. |
 | `publish <template...>` | Uploads the named templates; `--all` takes every changed one. Shows the plan and asks first. `--dry-run` stops after the plan; `--yes` skips the question. |
 | `status` | Lists templates that differ from the store. |
 | `lint [template...]` | Flags unsupported HTML and CSS. Exits non-zero if it finds any, so CI can use it. `--partial` also lists features that only partly work. `--accept` adds everything it would report to `lint.ignore` instead; see [Email client check](#email-client-check). |
