@@ -2,6 +2,7 @@
   "store": {
     "name": "Example Store",
     "domain_name": "example-store.mybigcommerce.com",
+    "cdn_path": "",
     "logo": {
       "title": "Example Store",
       "name": "logo.png",

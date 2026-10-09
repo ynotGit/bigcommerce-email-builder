@@ -105,6 +105,8 @@ export interface EmailOrder {
 export interface EmailStore {
   name: string;
   domain_name: string;
+  /** Templates build the logo and icon URLs from this, e.g. {{store.cdn_path}}/img/emails/cart.png */
+  cdn_path: string;
   logo: { title: string; name: string; url: string };
   ssl_path: string;
   path_normal: string;

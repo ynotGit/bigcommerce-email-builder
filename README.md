@@ -19,10 +19,13 @@ From the same folder:
 
     npx email-builder setup staging production
     npx email-builder env use staging
+    npx email-builder fixture store
 
 `setup` asks for each store's hash and API token, then downloads the email
 templates into a new `theme-emails/` folder. `env use` chooses which store
 your commands point at. Nothing else runs until you have chosen one.
+`fixture store` puts that store's name, logo and image paths into the
+preview; without it the logo and icons in the emails show as broken images.
 
 Commit `theme-emails/` to your repo. Credentials inside it are gitignored.
 
@@ -59,7 +62,6 @@ another store without switching, add `--env production`.
 | Check for HTML and CSS that email clients do not support | `npx email-builder lint` |
 | See which emails differ from the store | `npx email-builder status` |
 | Show real products in the preview | Add `{ "skus": ["TOTE-NAT"] }` to `theme-emails/email-builder.json`, then `npx email-builder fixture sku` |
-| Show your store's name and logo in the preview | `npx email-builder fixture store` |
 
 ## Good to know
 

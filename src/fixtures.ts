@@ -143,8 +143,9 @@ export interface StoreSummary {
 
 /**
  * Replaces the sample store in _global.json with the selected environment's
- * real one, so the preview shows the store's own name and logo. The rest of
- * the file (the sample customer, anything added by hand) is kept.
+ * real one, so the preview shows the store's own name and logo and can load
+ * the images templates build from its CDN path. The rest of the file (the
+ * sample customer, anything added by hand) is kept.
  */
 export async function buildStoreFixture(config: Config): Promise<{ file: string; store: StoreSummary }> {
   const remote = await fetchStore(config);
@@ -162,10 +163,13 @@ export async function buildStoreFixture(config: Config): Promise<{ file: string;
   const logo = (isObject(remote.logo) && typeof remote.logo.url === 'string' && remote.logo.url) || '';
   const address = remote.address ?? '';
   const url = remote.secure_url || (domain ? `https://${domain}` : '');
+  // Derived rather than read: the logo's URL starts with the CDN path; a store without a logo is on the usual host.
+  const cdnPath = /^https?:\/\/[^/]+\/s-[^/]+/i.exec(logo)?.[0] ?? `https://cdn11.bigcommerce.com/s-${config.storeHash ?? ''}`;
   data.store = {
     ...current,
     name,
     domain_name: domain,
+    cdn_path: cdnPath,
     // With no logo the URL is left empty, and templates fall back to the store name as they do in a real email
     logo: { title: name, name: logo.split('?')[0]?.split('/').pop() ?? '', url: logo },
     ssl_path: url,

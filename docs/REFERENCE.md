@@ -27,7 +27,7 @@ The [README](../README.md) covers the everyday flow. This page has the detail.
 | `lint [template...]` | Flags unsupported HTML and CSS. Exits non-zero if it finds any, so CI can use it. `--partial` also lists features that only partly work. |
 | `create <template>` | Downloads one template. `--all` downloads every one. With no name it lists what the store has. Keeps local edits unless you pass `--force`. |
 | `fixture sku` | Builds preview data with the products in the `skus` list. `--template` targets another email; `--name` sets the file name. |
-| `fixture store` | Puts the store's own name, logo, domain and address into the preview data every email shares. |
+| `fixture store` | Puts the store's own name, logo, domain, address and CDN path into the preview data every email shares. Images in the stock templates need it. |
 | `init` | Sets up a single environment called `default`. `setup` does this and more. |
 
 A template is named by its type ID (`combined_order_status_email`). A path to
@@ -125,9 +125,12 @@ Two commands add real, non-personal data:
   writes `products.json`, one line item per SKU, quantity 1, total the sum of
   the prices. Choose "products" under Preview data to see it.
 - `fixture store` reads the selected environment's store profile and writes
-  its name, logo, domain and address into `_global.json`. The sample customer
-  and anything you added by hand stay. A store with no logo gets an empty logo
-  URL, so templates fall back to the store name as they do in a real email.
+  its name, logo, domain, address and CDN path into `_global.json`. The sample
+  customer and anything you added by hand stay. BigCommerce's stock templates
+  build the logo and icon URLs from `store.cdn_path`, so those images are
+  broken in the preview until you run this. A store with no logo gets an empty
+  logo URL, so templates fall back to the store name as they do in a real
+  email.
   `_global.json` is shared by every environment, so it shows the store you
   last ran this against.
 

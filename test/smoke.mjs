@@ -57,7 +57,7 @@ const api = http.createServer((req, res) => {
   if (p === '/v2/store') {
     return send(store === 'stagehash'
       ? { name: 'Stage Store', domain: 'stage.example', secure_url: 'https://stage.example', logo: [], address: '', language: 'en', currency: 'GBP' }
-      : { name: 'Mock Store', domain: 'mock.example', secure_url: 'https://mock.example', logo: { url: 'https://mock.example/logo.png?t=1' }, address: '1 Mock St\nMockville', language: 'en', currency: 'GBP' });
+      : { name: 'Mock Store', domain: 'mock.example', secure_url: 'https://mock.example', logo: { url: 'https://cdn99.example/s-testhash/product_images/logo.png?t=1' }, address: '1 Mock St\nMockville', language: 'en', currency: 'GBP' });
   }
   // catalog: one SKU that is a product, one that is a variant of another product
   const tote = { id: 5, name: 'Tote', sku: 'T1', price: 20, calculated_price: 18.5, brand_id: 3, primary_image: { url_thumbnail: 'https://cdn.example/tote.jpg' } };
@@ -222,14 +222,15 @@ try {
   assert.equal(shipped.store.name, 'Example Store');
   fs.writeFileSync(globalFile, JSON.stringify({ ...shipped, store: { ...shipped.store, mine: 'kept' } }));
   out = await run('fixture', 'store');
-  assert.match(out, /name {5}Mock Store\n {2}domain {3}mock\.example\n {2}logo {5}https:\/\/mock\.example\/logo\.png\?t=1\n {2}address {2}1 Mock St, Mockville/);
+  assert.match(out, /name {5}Mock Store\n {2}domain {3}mock\.example\n {2}logo {5}https:\/\/cdn99\.example\/s-testhash\/product_images\/logo\.png\?t=1\n {2}address {2}1 Mock St, Mockville/);
   assert.match(out, /Wrote theme-emails\/fixtures\/_global\.json\nEvery preview now shows the default environment's store/);
   const pulled = JSON.parse(fs.readFileSync(globalFile));
   assert.deepEqual(pulled.store, {
     ...shipped.store,
     name: 'Mock Store',
     domain_name: 'mock.example',
-    logo: { title: 'Mock Store', name: 'logo.png', url: 'https://mock.example/logo.png?t=1' },
+    cdn_path: 'https://cdn99.example/s-testhash', // taken from the logo's URL, which is where templates look for images
+    logo: { title: 'Mock Store', name: 'logo.png', url: 'https://cdn99.example/s-testhash/product_images/logo.png?t=1' },
     ssl_path: 'https://mock.example',
     path_normal: 'https://mock.example',
     path: 'https://mock.example',
@@ -239,7 +240,9 @@ try {
   assert.deepEqual(pulled.customer, shipped.customer, 'the customer stays sample data');
   // a store with no logo leaves the URL empty, so templates fall back to the store name
   await run('fixture', 'store', '--env', 'staging');
-  assert.deepEqual(JSON.parse(fs.readFileSync(globalFile)).store.logo, { title: 'Stage Store', name: '', url: '' });
+  const staged = JSON.parse(fs.readFileSync(globalFile)).store;
+  assert.deepEqual(staged.logo, { title: 'Stage Store', name: '', url: '' });
+  assert.equal(staged.cdn_path, 'https://cdn11.bigcommerce.com/s-stagehash', 'without a logo the CDN path comes from the store hash');
   fs.writeFileSync(globalFile, '{ not json');
   assert.match(await fails('fixture', 'store'), /fixtures\/_global\.json is not valid JSON/);
   fs.rmSync(globalFile);
