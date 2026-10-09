@@ -29,7 +29,7 @@ Every day
 Extras
   status                   List templates that differ from the store
   lint                     Flag HTML and CSS that email clients do not support
-  fixture sku              Show the products from your "skus" list in the preview
+  fixture sku              Show the products from your "skus" list in every email's preview
   fixture store            Show the store's own name and logo in the preview
   env                      List environments; * marks the selected one
 
@@ -215,13 +215,18 @@ async function fixture(config: Config, flags: Flags, args: string[]): Promise<vo
       );
     }
     console.log(`Looking up ${skus.length} SKU(s) from ${SETTINGS_FILE} in the store's catalog.`);
-    const { file, products } = await buildSkuFixture(config, skus, {
-      typeId: typeof flags.template === 'string' ? toTypeId(flags.template) : undefined,
+    const typeId = typeof flags.template === 'string' ? toTypeId(flags.template) : undefined;
+    const { file, products, shadowedBy } = await buildSkuFixture(config, skus, {
+      typeId,
       name: typeof flags.name === 'string' ? flags.name : undefined,
     });
     for (const p of products) console.log(`  ${p.sku}  ${p.name}  ${p.price}`);
-    const name = path.basename(file, '.json');
-    return console.log(`\nWrote ${display(file)}\nChoose "${name}" under Preview data to see ${products.length === 1 ? 'it' : 'them'} in the email. The customer in it is sample data.`);
+    const name = path.basename(file, '.json').replace(/^_/, '');
+    console.log(`\nWrote ${display(file)}\nChoose "${name}" under Preview data ${typeId ? `on ${typeId}` : 'on any email'} to see ${products.length === 1 ? 'it' : 'them'}. The customer is sample data.`);
+    if (shadowedBy.length) {
+      console.log(`\nThese emails have a ${name}.json of their own and keep using it. Delete it to use the shared one:\n  ${shadowedBy.join('\n  ')}`);
+    }
+    return undefined;
   }
   if (kind === 'store') {
     const { file, store } = await buildStoreFixture(config);

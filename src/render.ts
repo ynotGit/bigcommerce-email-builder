@@ -26,14 +26,20 @@ function readJson(file: string, label: string): Json {
   }
 }
 
+/** A fixture every email can use sits beside _global.json: fixtures/_products.json is "products". */
+export const sharedFixtureFile = (config: Config, name: string): string => path.join(config.fixturesDir, `_${name}.json`);
+
+const jsonNames = (dir: string): string[] =>
+  fs.existsSync(dir) ? fs.readdirSync(dir).filter((file) => file.endsWith('.json')).map((file) => file.slice(0, -5)) : [];
+
+/** An email's own fixtures plus the shared ones, which are offered for every email. */
 export function listFixtures(config: Config, typeId: string): string[] {
-  const dir = path.join(config.fixturesDir, typeId);
-  if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((file) => file.endsWith('.json'))
-    .map((file) => file.slice(0, -5))
-    .sort((a, b) => (a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b)));
+  const own = jsonNames(path.join(config.fixturesDir, typeId));
+  const shared = jsonNames(config.fixturesDir)
+    .filter((name) => name.startsWith('_') && name !== '_global')
+    .map((name) => name.slice(1));
+  if (shared.length) own.push('default', ...shared);
+  return [...new Set(own)].sort((a, b) => (a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b)));
 }
 
 /** What BigCommerce's conditionals count as true. Unlike stock Handlebars, an empty object is false. */
@@ -175,9 +181,18 @@ export async function renderEmail(config: Config, request: RenderRequest): Promi
       warn(`Body is ${result.length.toLocaleString('en-US')} characters. BigCommerce truncates past ${BODY_LIMIT.toLocaleString('en-US')}.`);
     }
 
+    // An email's own fixture is used as it is. A shared one, such as the products
+    // from "fixture sku", is laid over the email's default so the rest stays filled in.
+    const shared = sharedFixtureFile(config, fixture);
+    const useShared = fixture !== 'global' && fs.existsSync(shared)
+      && !fs.existsSync(path.join(config.fixturesDir, typeId, `${fixture}.json`));
+    const own = useShared ? 'default' : fixture;
     const context = deepMerge(
-      readJson(path.join(config.fixturesDir, '_global.json'), 'fixtures/_global.json'),
-      readJson(path.join(config.fixturesDir, typeId, `${fixture}.json`), `fixtures/${typeId}/${fixture}.json`),
+      deepMerge(
+        readJson(path.join(config.fixturesDir, '_global.json'), 'fixtures/_global.json'),
+        readJson(path.join(config.fixturesDir, typeId, `${own}.json`), `fixtures/${typeId}/${own}.json`),
+      ),
+      useShared ? readJson(shared, `fixtures/_${fixture}.json`) : {},
     ) as Json;
     // The phrases on disk are what would be published, so they win over fixture data.
     context.translations = template.translations;

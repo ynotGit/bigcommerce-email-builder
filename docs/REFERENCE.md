@@ -26,7 +26,7 @@ The [README](../README.md) covers the everyday flow. This page has the detail.
 | `status` | Lists templates that differ from the store. |
 | `lint [template...]` | Flags unsupported HTML and CSS. Exits non-zero if it finds any, so CI can use it. `--partial` also lists features that only partly work. |
 | `create <template>` | Downloads one template. `--all` downloads every one. With no name it lists what the store has. Keeps local edits unless you pass `--force`. Adds a starter `email-builder.json` if the project has none. |
-| `fixture sku` | Builds preview data with the products in the `skus` list. `--template` targets another email; `--name` sets the file name. |
+| `fixture sku` | Builds preview data with the products in the `skus` list, for every email to use. `--template` writes it for one email only; `--name` sets the file name. |
 | `fixture store` | Puts the store's own name, logo, domain, address and CDN path into the preview data every email shares. Images in the stock templates need it. |
 | `init` | Sets up a single environment called `default`. `setup` does this and more. |
 
@@ -87,7 +87,7 @@ the tool is installed globally.
       templates/global/<type_id>/translations.json   phrases, keyed by locale
       fixtures/_global.json                          preview data shared by every email
       fixtures/<type_id>/default.json                preview data for one email
-      fixtures/<type_id>/products.json               written by `fixture sku`
+      fixtures/_products.json                        written by `fixture sku`, offered for every email
 
 ## Settings file
 
@@ -112,7 +112,9 @@ and OTL. An existing file is never replaced.
 ## Preview data
 
 Each fixture is merged over `_global.json`, and the result is the object the
-template renders against. The shape for each email is in BigCommerce's
+template renders against. A fixture whose file sits beside `_global.json`
+with a leading underscore, such as `_products.json`, is shared: every email
+offers it, and it is merged over that email's `default.json`. The shape for each email is in BigCommerce's
 [email object reference](https://docs.bigcommerce.com/developer/docs/admin/store-configuration/emails/email-object-reference/global-email-object).
 
 Starter fixtures ship for `combined_order_status_email` and
@@ -124,8 +126,12 @@ The customer, order number, tracking details and store name are made up.
 Two commands add real, non-personal data:
 
 - `fixture sku` looks up each SKU in the selected environment's catalog and
-  writes `products.json`, one line item per SKU, quantity 1, total the sum of
-  the prices. Choose "products" under Preview data to see it.
+  writes `fixtures/_products.json`, one line item per SKU, quantity 1, total
+  the sum of the prices. Choose "products" under Preview data on any email:
+  the products show wherever that email lists them (an order, a review
+  request or a return), and an email with no product list looks the same as
+  with "default". An email that has a `products.json` of its own keeps using
+  that one; `fixture sku --template <email>` writes such a file.
 - `fixture store` reads the selected environment's store profile and writes
   its name, logo, domain, address and CDN path into `_global.json`. The sample
   customer and anything you added by hand stay. BigCommerce's stock templates

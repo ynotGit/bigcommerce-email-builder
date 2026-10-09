@@ -119,7 +119,7 @@ try {
 
   // local render
   const { loadConfig } = await import('../dist/config.js');
-  const { renderEmail } = await import('../dist/render.js');
+  const { listFixtures, renderEmail } = await import('../dist/render.js');
   const prev = process.cwd();
   process.chdir(cwd);
   Object.assign(process.env, env, { BC_STORE_HASH: 'testhash', BC_ACCESS_TOKEN: 'tok' });
@@ -294,16 +294,36 @@ try {
   fs.writeFileSync(path.join(ws, 'email-builder.json'), JSON.stringify({ skus: ['T1', ' SHIRT-RED-M ', '', 'T1'] }));
   out = await run('fixture', 'sku');
   assert.match(out, /Looking up 2 SKU\(s\) from email-builder\.json/);
-  assert.match(out, /T1 {2}Tote {2}£18\.50[\s\S]*SHIRT-RED-M {2}Shirt {2}£30\.00[\s\S]*Wrote theme-emails\/fixtures\/combined_order_status_email\/products\.json/);
-  const fx = JSON.parse(fs.readFileSync(path.join(ws, 'fixtures', 'combined_order_status_email', 'products.json')));
+  assert.match(out, /T1 {2}Tote {2}£18\.50[\s\S]*SHIRT-RED-M {2}Shirt {2}£30\.00[\s\S]*Wrote theme-emails\/fixtures\/_products\.json\nChoose "products" under Preview data on any email to see them/);
+  // one shared file holds only the products, in each place an email reads them from
+  const fx = JSON.parse(fs.readFileSync(path.join(ws, 'fixtures', '_products.json')));
+  assert.deepEqual(Object.keys(fx), ['order', 'review', 'return']);
+  assert.deepEqual(fx.review.products.map((p) => [p.sku, p.link]), [['T1', '#review'], ['SHIRT-RED-M', '#review']]);
+  assert.deepEqual(fx.return.products, fx.order.products);
+  assert.equal(fx.return.product.sku, 'T1');
   assert.deepEqual(fx.order.products[0], { name: 'Tote', sku: 'T1', price: '£18.50', quantity: 1, thumbnail: 'https://cdn.example/tote.jpg', brand: 'Acme', attribute_lines: [] });
   assert.deepEqual(fx.order.products[1].attribute_lines, [{ name: 'Color', value: 'Red' }, { name: 'Size', value: 'M' }]);
   assert.equal(fx.order.products[1].thumbnail, 'https://cdn.example/shirt-red.jpg');
   assert.equal(fx.order.total.formatted, '£48.50');
-  assert.equal(fx.order.customer_name, 'Jordan Rivera', 'the customer stays sample data');
+  // every email offers it, and it is laid over that email's own default data
+  assert.deepEqual(listFixtures(config, 'account_reset_password_email'), ['default', 'products']);
+  fs.writeFileSync(tpl('account_reset_password_email', 'body.html'), '{{#each order.products}}{{sku}} {{/each}}{{#each review.products}}{{link}} {{/each}}{{return.product.name}} {{account.reset_password_link}}');
+  r = await renderEmail(config, { typeId: 'account_reset_password_email', fixture: 'products' });
+  assert.equal(r.html, 'T1 SHIRT-RED-M #review #review Tote https://example-store.mybigcommerce.com/login.php?action&#x3D;change_password&amp;c&#x3D;1&amp;t&#x3D;sample-token');
+  // --template writes one email's own file instead, starting from its sample data
+  out = await run('fixture', 'sku', '--template', 'account_reset_password_email', '--name', 'mine');
+  assert.match(out, /Wrote theme-emails\/fixtures\/account_reset_password_email\/mine\.json\nChoose "mine" under Preview data on account_reset_password_email/);
+  const mine = JSON.parse(fs.readFileSync(path.join(ws, 'fixtures', 'account_reset_password_email', 'mine.json')));
+  assert.equal(mine.order.products.length, 2);
+  assert.match(mine.account.reset_password_link, /sample-token/);
+  // an email with a file of the same name keeps using its own, and the command says so
+  out = await run('fixture', 'sku', '--name', 'mine');
+  assert.match(out, /These emails have a mine\.json of their own and keep using it\. Delete it to use the shared one:\n {2}account_reset_password_email\n/);
+  fs.rmSync(path.join(ws, 'fixtures', '_mine.json'));
+  fs.rmSync(path.join(ws, 'fixtures', 'account_reset_password_email', 'mine.json'));
   fs.writeFileSync(path.join(ws, 'email-builder.json'), JSON.stringify({ skus: ['T1', 'NOPE'] }));
   assert.match(await fails('fixture', 'sku', '--name', 'broken'), /No product or variant in this store's catalog has the SKU "NOPE"/);
-  assert.ok(!fs.existsSync(path.join(ws, 'fixtures', 'combined_order_status_email', 'broken.json')), 'nothing is written when a SKU is missing');
+  assert.ok(!fs.existsSync(path.join(ws, 'fixtures', '_broken.json')), 'nothing is written when a SKU is missing');
   assert.match(await fails('fixture', 'order', '77'), /The fixture commands are "email-builder fixture sku" and "email-builder fixture store"/);
   fs.writeFileSync(path.join(ws, 'email-builder.json'), JSON.stringify({ skus: 'T1' }));
   assert.match(await fails('fixture', 'sku'), /"skus" in email-builder\.json must be a list/);
@@ -399,7 +419,7 @@ try {
   assert.ok(fs.existsSync(path.join(freshWs, '.env.staging')));
   assert.ok(fs.existsSync(path.join(freshWs, 'templates', 'global', 'combined_order_status_email', 'body.html')));
   assert.equal(JSON.parse(fs.readFileSync(path.join(freshWs, 'fixtures', '_global.json'))).store.name, 'Example Store');
-  assert.ok(fs.existsSync(path.join(freshWs, 'fixtures', 'combined_order_status_email', 'products.json')));
+  assert.ok(fs.existsSync(path.join(freshWs, 'fixtures', '_products.json')));
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(freshWs, 'email-builder.json'))), { skus: ['T1'] }, 'a settings file that is already there is never replaced');
   // rerunning is safe: no questions, local edits kept
   fs.appendFileSync(path.join(freshWs, 'templates', 'global', 'combined_order_status_email', 'body.html'), '<!-- mine -->');

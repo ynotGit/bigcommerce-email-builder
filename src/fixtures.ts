@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { bc } from './api.js';
 import { PACKAGE_ROOT } from './config.js';
+import { sharedFixtureFile } from './render.js';
 import type { Config, EmailProduct, V2Store, V3Product, V3Variant } from './types.js';
 
 const defaultsDir = path.join(PACKAGE_ROOT, 'defaults');
@@ -92,6 +93,7 @@ async function productForSku(config: Config, sku: string, currency: string, bran
 }
 
 interface SkuFixtureOptions {
+  /** Write one email's own fixture instead of the shared one every email can use. */
   typeId?: string;
   name?: string;
 }
@@ -99,13 +101,23 @@ interface SkuFixtureOptions {
 type Json = Record<string, unknown>;
 const isObject = (value: unknown): value is Json => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
+interface SkuFixture {
+  file: string;
+  products: EmailProduct[];
+  /** Emails with a fixture of the same name of their own, which they keep using instead of the shared one. */
+  shadowedBy: string[];
+}
+
 /**
- * Builds preview data that shows real catalog products in an otherwise made-up
- * order. Only product data is read from the store; the customer stays the
- * sample one from the default fixture.
+ * Builds preview data that shows real catalog products in otherwise made-up
+ * emails. Only product data is read from the store; the customer stays the
+ * sample one. Without a template it writes one shared fixture that the preview
+ * lays over whichever email is open, so the products show in every email that
+ * has a place for them.
  */
-export async function buildSkuFixture(config: Config, skus: string[], options: SkuFixtureOptions = {}): Promise<{ file: string; products: EmailProduct[] }> {
-  const typeId = options.typeId ?? 'combined_order_status_email';
+export async function buildSkuFixture(config: Config, skus: string[], options: SkuFixtureOptions = {}): Promise<SkuFixture> {
+  const { typeId } = options;
+  const name = options.name || 'products';
   const currency = (await fetchStore(config)).currency || 'USD';
   const brands = new Map<number, string>();
   const products: EmailProduct[] = [];
@@ -116,22 +128,30 @@ export async function buildSkuFixture(config: Config, skus: string[], options: S
     total += value * line.quantity;
   }
 
-  // Start from the template's existing sample data so everything else stays filled in.
+  // The products, in each place an email reads them from: an order, a review request and a return.
+  const placed: Record<string, Json> = {
+    order: { products, unshipped_products: [], downloadable_products: [], total: { value: total, formatted: money(total, currency) } },
+    review: { products: products.map((product) => ({ ...product, link: '#review' })) },
+    return: { products, product: products[0] },
+  };
+
+  if (!typeId) {
+    const file = sharedFixtureFile(config, name);
+    writeJson(file, placed);
+    const shadowedBy = fs.existsSync(config.fixturesDir)
+      ? fs.readdirSync(config.fixturesDir).filter((dir) => fs.existsSync(path.join(config.fixturesDir, dir, `${name}.json`))).sort()
+      : [];
+    return { file, products, shadowedBy };
+  }
+
+  // One email's own fixture starts from its sample data so everything else stays filled in.
   const dir = path.join(config.fixturesDir, typeId);
   const base = [path.join(dir, 'default.json'), path.join(defaultsDir, `${typeId}.json`)].find((f) => fs.existsSync(f));
   const data = base ? (JSON.parse(fs.readFileSync(base, 'utf8')) as Json) : {};
-  const order: Json = isObject(data.order) ? data.order : {};
-  data.order = {
-    ...order,
-    products,
-    unshipped_products: [],
-    downloadable_products: [],
-    total: { value: total, formatted: money(total, currency) },
-  };
-
-  const file = path.join(dir, `${options.name || 'products'}.json`);
+  for (const [key, value] of Object.entries(placed)) data[key] = { ...(isObject(data[key]) ? data[key] : {}), ...value };
+  const file = path.join(dir, `${name}.json`);
   writeJson(file, data);
-  return { file, products };
+  return { file, products, shadowedBy: [] };
 }
 
 export interface StoreSummary {
