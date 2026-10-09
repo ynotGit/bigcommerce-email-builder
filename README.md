@@ -48,8 +48,9 @@ Commit `theme-emails/` to your repo. Credentials inside it are gitignored.
 
     npx email-builder start
 
-Open http://localhost:4321. Edit the files for an email and the preview
-reloads when you save:
+Open http://localhost:4321. Each email has a folder named as the BigCommerce
+admin lists it, so "Order Status Update" is `order-status-update`. Edit its
+files and the preview reloads when you save:
 
     theme-emails/templates/global/<email>/body.html           the email
     theme-emails/templates/global/<email>/subject.hbs         the subject line
@@ -57,7 +58,7 @@ reloads when you save:
 
 When it looks right:
 
-    npx email-builder publish combined_order_status_email
+    npx email-builder publish order-status-update
 
 It shows what changed and asks before it writes to the store. Then send
 yourself a test email from Marketing > Transactional Emails in the BigCommerce

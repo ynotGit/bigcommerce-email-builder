@@ -4,6 +4,7 @@ import path from 'node:path';
 import { PACKAGE_ROOT } from './config.js';
 import { listLocalTemplates, readLocalTemplate } from './store.js';
 import { lintTemplate, summariseClients } from './lint.js';
+import { adminName, folderName } from './names.js';
 import { listFixtures, renderEmail } from './render.js';
 import { settingsPath } from './settings.js';
 import type { Config, RenderRequest } from './types.js';
@@ -29,7 +30,7 @@ function templateSummary(config: Config) {
       const keys = Object.keys(readLocalTemplate(config, typeId)?.translations ?? {});
       if (keys.length) locales = keys;
     } catch { /* surfaced when the template renders */ }
-    return { typeId, fixtures: listFixtures(config, typeId), locales };
+    return { typeId, name: adminName(typeId), folder: folderName(typeId), fixtures: listFixtures(config, typeId), locales };
   });
 }
 

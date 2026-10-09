@@ -1,9 +1,10 @@
-// Templates on disk:
-//   templates/<scope>/<type_id>/body.html
-//   templates/<scope>/<type_id>/subject.hbs
-//   templates/<scope>/<type_id>/translations.json   { "en": { "key": "phrase" } }
+// Templates on disk, in a folder named after the email as the admin lists it (see names.ts):
+//   templates/<scope>/<email>/body.html
+//   templates/<scope>/<email>/subject.hbs
+//   templates/<scope>/<email>/translations.json   { "en": { "key": "phrase" } }
 import fs from 'node:fs';
 import path from 'node:path';
+import { folderName, toTypeId } from './names.js';
 import type { Config, LocalTemplate, RemoteTemplate, RemoteTranslation, TemplatePart, TranslationMap } from './types.js';
 
 const readIf = (file: string): string | null => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null);
@@ -18,17 +19,22 @@ export function translationsToList(map: TranslationMap): RemoteTranslation[] {
   return Object.entries(map).map(([locale, keys]) => ({ locale, keys }));
 }
 
+/** Where one email's files live. */
+export const templateDir = (config: Config, typeId: string): string => path.join(config.templatesDir, folderName(typeId));
+
+/** The type IDs of the emails on disk, in folder order. */
 export function listLocalTemplates(config: Config): string[] {
   if (!fs.existsSync(config.templatesDir)) return [];
-  return fs
+  const folders = fs
     .readdirSync(config.templatesDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(config.templatesDir, entry.name, 'body.html')))
     .map((entry) => entry.name)
     .sort();
+  return [...new Set(folders.map(toTypeId))];
 }
 
 export function readLocalTemplate(config: Config, typeId: string): LocalTemplate | null {
-  const dir = path.join(config.templatesDir, typeId);
+  const dir = templateDir(config, typeId);
   const body = readIf(path.join(dir, 'body.html'));
   if (body === null) return null;
   const rawTranslations = readIf(path.join(dir, 'translations.json'));
@@ -37,7 +43,7 @@ export function readLocalTemplate(config: Config, typeId: string): LocalTemplate
     try {
       translations = JSON.parse(rawTranslations) as TranslationMap;
     } catch (err) {
-      throw new Error(`${typeId}/translations.json is not valid JSON: ${(err as Error).message}`);
+      throw new Error(`${folderName(typeId)}/translations.json is not valid JSON: ${(err as Error).message}`);
     }
   }
   return {
@@ -50,7 +56,7 @@ export function readLocalTemplate(config: Config, typeId: string): LocalTemplate
 }
 
 export function writeLocalTemplate(config: Config, remote: RemoteTemplate): void {
-  const dir = path.join(config.templatesDir, remote.type_id);
+  const dir = templateDir(config, remote.type_id);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'body.html'), remote.body ?? '');
   fs.writeFileSync(path.join(dir, 'subject.hbs'), `${remote.subject ?? ''}\n`);

@@ -10,10 +10,11 @@ import { buildSkuFixture, buildStoreFixture, ensureDefaultFixtures } from './fix
 import { env } from './env.js';
 import { init, saveEnvironment } from './init.js';
 import { lintTemplate, readLintSettings, summariseClients } from './lint.js';
+import { folderName, renameLegacyFolders, toTypeId as nameToTypeId } from './names.js';
 import { checkSyntax } from './render.js';
 import { startServer } from './server.js';
 import { SETTINGS_FILE, ensureSettings, readSkus, settingsPath } from './settings.js';
-import { diffTemplate, listLocalTemplates, readLocalTemplate, toApiPayload, writeLocalTemplate } from './store.js';
+import { diffTemplate, listLocalTemplates, readLocalTemplate, templateDir, toApiPayload, writeLocalTemplate } from './store.js';
 import type { Config, Flags, LocalTemplate, RemoteTemplate, TemplatePart } from './types.js';
 
 const HELP = `Usage: email-builder <command>
@@ -58,8 +59,15 @@ function parseArgs(argv: string[]): { flags: Flags; positional: string[] } {
   return { flags, positional };
 }
 
-/** "templates/global/order_email/" and "order_email" both name the same template. */
-const toTypeId = (arg: string): string => path.basename(arg.replace(/[\\/]+$/, ''));
+/** "templates/global/order-email/", "order-email" and the type ID "invoice_email" all name the same template. */
+const toTypeId = (arg: string): string => nameToTypeId(path.basename(arg.replace(/[\\/]+$/, '')));
+
+/** Projects from before folders took the admin names are brought into line, and told so. */
+function renameFolders(config: Config): void {
+  const renamed = renameLegacyFolders(config);
+  const [example] = renamed;
+  if (example) console.log(`Renamed ${renamed.length} folder(s) to match the names in the BigCommerce admin, for example ${display(example)}\n`);
+}
 
 const where = (config: Config): string => (config.channelId ? `channel ${config.channelId}` : 'the global templates');
 
@@ -70,7 +78,7 @@ const count = (n: number): string => n.toLocaleString('en-US');
 
 async function create(config: Config, flags: Flags, args: string[]): Promise<void> {
   const remote = await listRemoteTemplates(config);
-  const names = remote.map((t) => t.type_id).sort();
+  const names = remote.map((t) => folderName(t.type_id)).sort();
   if (!remote.length) return console.log(`The store returned no templates for ${where(config)}.`);
 
   let wanted: RemoteTemplate[];
@@ -81,9 +89,9 @@ async function create(config: Config, flags: Flags, args: string[]): Promise<voi
     if (!ids.length) {
       return console.log(`Name a template to download, or pass --all. The store has:\n  ${names.join('\n  ')}`);
     }
-    const unknown = ids.filter((id) => !names.includes(id));
+    const unknown = ids.filter((id) => !remote.some((t) => t.type_id === id));
     if (unknown.length) {
-      throw new Error(`The store has no template called ${unknown.join(', ')}. It has:\n  ${names.join('\n  ')}`);
+      throw new Error(`The store has no template called ${unknown.map(folderName).join(', ')}. It has:\n  ${names.join('\n  ')}`);
     }
     wanted = remote.filter((t) => ids.includes(t.type_id));
   }
@@ -93,7 +101,7 @@ async function create(config: Config, flags: Flags, args: string[]): Promise<voi
   for (const template of wanted) {
     const local = readLocalTemplate(config, template.type_id);
     const changed = local ? diffTemplate(local, template) : [];
-    if (local && changed.length && !flags.force) { skipped.push(template.type_id); continue; }
+    if (local && changed.length && !flags.force) { skipped.push(folderName(template.type_id)); continue; }
     if (!local || changed.length) { writeLocalTemplate(config, template); written++; }
   }
   const fixtures = ensureDefaultFixtures(config, wanted.map((t) => t.type_id));
@@ -105,7 +113,7 @@ async function create(config: Config, flags: Flags, args: string[]): Promise<voi
   if (fixtures.length) console.log(`\nCreated ${fixtures.length} starter fixture file(s) in ${display(config.fixturesDir)}.`);
   if (starterSettings) console.log(`Created ${display(settingsPath(config))} with a starter "skus" list for the preview.`);
   const first = wanted[0];
-  if (first && !flags.chained) console.log(`\nNext: email-builder start ${wanted.length === 1 ? first.type_id : ''}`.trimEnd());
+  if (first && !flags.chained) console.log(`\nNext: email-builder start ${wanted.length === 1 ? folderName(first.type_id) : ''}`.trimEnd());
 }
 
 interface Comparison {
@@ -119,7 +127,7 @@ async function compare(config: Config, typeIds: string[]): Promise<Comparison[]>
   const remote = new Map((await listRemoteTemplates(config)).map((t) => [t.type_id, t]));
   return typeIds.map((typeId): Comparison => {
     const local = readLocalTemplate(config, typeId);
-    if (!local) return { typeId, changed: [], problem: `no local template at ${display(path.join(config.templatesDir, typeId))}` };
+    if (!local) return { typeId, changed: [], problem: `no local template at ${display(templateDir(config, typeId))}` };
     const row: Comparison = { typeId, local, changed: diffTemplate(local, remote.get(typeId)) };
     const syntax = checkSyntax(local);
     if (syntax) {
@@ -137,7 +145,7 @@ async function status(config: Config): Promise<void> {
   if (!changed.length) return console.log(`Nothing to publish. Local templates match ${where(config)}.`);
   for (const r of changed) {
     const parts = r.changed.length ? `changed: ${r.changed.join(', ')}` : '';
-    console.log(`  ${r.typeId}  ${parts}${r.problem ? `  [${r.problem}]` : ''}`);
+    console.log(`  ${folderName(r.typeId)}  ${parts}${r.problem ? `  [${r.problem}]` : ''}`);
   }
 }
 
@@ -147,8 +155,8 @@ async function publish(config: Config, flags: Flags, args: string[]): Promise<vo
   const blocked = rows.filter((r) => r.problem);
   const ready = rows.filter((r) => !r.problem && r.changed.length);
 
-  for (const r of blocked) console.log(`  blocked  ${r.typeId}: ${r.problem}`);
-  for (const r of ready) console.log(`  publish  ${r.typeId} (${r.changed.join(', ')})`);
+  for (const r of blocked) console.log(`  blocked  ${folderName(r.typeId)}: ${r.problem}`);
+  for (const r of ready) console.log(`  publish  ${folderName(r.typeId)} (${r.changed.join(', ')})`);
   if (blocked.length) throw new Error('Fix the blocked templates first. Nothing was published.');
   const compat = ready.reduce((total, r) => total + lintTemplate(config, r.typeId).length, 0);
   if (compat) console.log(`\n${compat} feature(s) in these templates are not supported by some email clients. See them with: email-builder lint`);
@@ -165,7 +173,7 @@ async function publish(config: Config, flags: Flags, args: string[]): Promise<vo
   for (const r of ready) {
     if (!r.local) continue;
     await putRemoteTemplate(config, toApiPayload(r.local));
-    console.log(`  published  ${r.typeId}`);
+    console.log(`  published  ${folderName(r.typeId)}`);
   }
 }
 
@@ -174,7 +182,7 @@ function lint(config: Config, flags: Flags, args: string[]): number {
   const local = listLocalTemplates(config);
   const typeIds = args.length ? args.map(toTypeId) : local;
   const unknown = typeIds.filter((id) => !local.includes(id));
-  if (unknown.length) throw new Error(`No local template called ${unknown.join(', ')}.`);
+  if (unknown.length) throw new Error(`No local template called ${unknown.map(folderName).join(', ')}.`);
   if (!typeIds.length) {
     console.log('No templates to check yet. Run "email-builder create --all" first.');
     return 0;
@@ -186,7 +194,7 @@ function lint(config: Config, flags: Flags, args: string[]): number {
   for (const typeId of typeIds) {
     const issues = lintTemplate(config, typeId, { partial: Boolean(flags.partial) });
     if (!issues.length) continue;
-    console.log(display(path.join(config.templatesDir, typeId, 'body.html')));
+    console.log(display(path.join(templateDir(config, typeId), 'body.html')));
     for (const issue of issues) {
       if (issue.level === 'unsupported') unsupported++; else partial++;
       const where = issue.line ? `${issue.line}:${issue.column}` : '-';
@@ -222,7 +230,7 @@ async function fixture(config: Config, flags: Flags, args: string[]): Promise<vo
     });
     for (const p of products) console.log(`  ${p.sku}  ${p.name}  ${p.price}`);
     const name = path.basename(file, '.json').replace(/^_/, '');
-    console.log(`\nWrote ${display(file)}\nChoose "${name}" under Preview data ${typeId ? `on ${typeId}` : 'on any email'} to see ${products.length === 1 ? 'it' : 'them'}. The customer is sample data.`);
+    console.log(`\nWrote ${display(file)}\nChoose "${name}" under Preview data ${typeId ? `on ${folderName(typeId)}` : 'on any email'} to see ${products.length === 1 ? 'it' : 'them'}. The customer is sample data.`);
     if (shadowedBy.length) {
       console.log(`\nThese emails have a ${name}.json of their own and keep using it. Delete it to use the shared one:\n  ${shadowedBy.join('\n  ')}`);
     }
@@ -269,6 +277,7 @@ async function setup(flags: Flags, args: string[]): Promise<void> {
   // Setup never chooses an environment for you. It only borrows the first one
   // named to download from; picking where commands point is left as an explicit step.
   const config = loadConfig({ ...flags, env: name });
+  renameFolders(config);
 
   console.log(`\nStep 2 of 3: templates, downloaded from ${name} (store ${config.storeHash})`);
   await create(config, { all: true, chained: true }, []);
@@ -294,7 +303,7 @@ async function start(config: Config, args: string[]): Promise<void> {
   const local = listLocalTemplates(config);
   const typeId = args[0] ? toTypeId(args[0]) : undefined;
   if (typeId && !local.includes(typeId)) {
-    throw new Error(`No local template called ${typeId}. Download it first: email-builder create ${typeId}`);
+    throw new Error(`No local template called ${folderName(typeId)}. Download it first: email-builder create ${folderName(typeId)}`);
   }
   const { url } = await startServer(config);
   console.log(`Starting email-builder at ${url}${typeId ? `/#type=${typeId}` : ''}`);
@@ -322,6 +331,7 @@ async function main(): Promise<void> {
 
   const config = loadConfig(flags);
   if (['create', 'publish', 'status', 'fixture'].includes(command)) announce(config);
+  if (['create', 'start', 'publish', 'status', 'lint', 'fixture'].includes(command)) renameFolders(config);
   switch (command) {
     case 'create': return create(config, flags, positional);
     case 'start': return start(config, positional);

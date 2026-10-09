@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Handlebars from 'handlebars';
 import { BODY_LIMIT, display } from './config.js';
-import { readLocalTemplate } from './store.js';
+import { folderName } from './names.js';
+import { readLocalTemplate, templateDir } from './store.js';
 import type { Config, LocalTemplate, RenderRequest, RenderResult, TranslationMap } from './types.js';
 
 type Json = Record<string, unknown>;
@@ -26,6 +27,9 @@ function readJson(file: string, label: string): Json {
   }
 }
 
+/** Where one email's own fixtures live. */
+export const fixtureDir = (config: Config, typeId: string): string => path.join(config.fixturesDir, folderName(typeId));
+
 /** A fixture every email can use sits beside _global.json: fixtures/_products.json is "products". */
 export const sharedFixtureFile = (config: Config, name: string): string => path.join(config.fixturesDir, `_${name}.json`);
 
@@ -34,7 +38,7 @@ const jsonNames = (dir: string): string[] =>
 
 /** An email's own fixtures plus the shared ones, which are offered for every email. */
 export function listFixtures(config: Config, typeId: string): string[] {
-  const own = jsonNames(path.join(config.fixturesDir, typeId));
+  const own = jsonNames(fixtureDir(config, typeId));
   const shared = jsonNames(config.fixturesDir)
     .filter((name) => name.startsWith('_') && name !== '_global')
     .map((name) => name.slice(1));
@@ -175,7 +179,7 @@ export async function renderEmail(config: Config, request: RenderRequest): Promi
   try {
     if (!typeId) throw new Error('No template selected.');
     const template = readLocalTemplate(config, typeId);
-    if (!template) throw new Error(`No template at ${display(path.join(config.templatesDir, typeId, 'body.html'))}`);
+    if (!template) throw new Error(`No template at ${display(path.join(templateDir(config, typeId), 'body.html'))}`);
     result.length = template.body.length;
     if (result.length > BODY_LIMIT) {
       warn(`Body is ${result.length.toLocaleString('en-US')} characters. BigCommerce truncates past ${BODY_LIMIT.toLocaleString('en-US')}.`);
@@ -185,12 +189,12 @@ export async function renderEmail(config: Config, request: RenderRequest): Promi
     // from "fixture sku", is laid over the email's default so the rest stays filled in.
     const shared = sharedFixtureFile(config, fixture);
     const useShared = fixture !== 'global' && fs.existsSync(shared)
-      && !fs.existsSync(path.join(config.fixturesDir, typeId, `${fixture}.json`));
+      && !fs.existsSync(path.join(fixtureDir(config, typeId), `${fixture}.json`));
     const own = useShared ? 'default' : fixture;
     const context = deepMerge(
       deepMerge(
         readJson(path.join(config.fixturesDir, '_global.json'), 'fixtures/_global.json'),
-        readJson(path.join(config.fixturesDir, typeId, `${own}.json`), `fixtures/${typeId}/${own}.json`),
+        readJson(path.join(fixtureDir(config, typeId), `${own}.json`), `fixtures/${folderName(typeId)}/${own}.json`),
       ),
       useShared ? readJson(shared, `fixtures/_${fixture}.json`) : {},
     ) as Json;

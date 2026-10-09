@@ -172,7 +172,8 @@ async function loadTemplates() {
     const li = document.createElement('li');
     const b = document.createElement('button');
     b.type = 'button';
-    b.textContent = t.typeId;
+    b.textContent = t.name;
+    b.title = t.folder;
     b.setAttribute('aria-current', String(t.typeId === state.type));
     b.onclick = () => { state.type = t.typeId; state.fixture = 'default'; refresh(true); };
     li.append(b);

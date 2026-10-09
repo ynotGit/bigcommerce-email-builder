@@ -98,16 +98,22 @@ try {
   assert.match(await fails('init', '--store-hash', 'x', '--token', 'y'), /already exists/);
 
   // create: lists what exists, downloads one by name or path, then all
-  assert.match(await run('create'), /Name a template[\s\S]*account_reset_password_email\n\s+combined_order_status_email/);
+  assert.match(await run('create'), /Name a template[\s\S]*order-status-update\n\s+password-reset/);
   assert.match(await fails('create', 'nope_email'), /no template called nope_email/);
-  out = await run('create', 'theme-emails/templates/global/account_reset_password_email/');
+  out = await run('create', 'theme-emails/templates/global/password-reset/');
   assert.match(out, /Downloaded 1 template.*into theme-emails\/templates\/global: 1 written/);
   assert.match(out, /Created theme-emails\/email-builder\.json with a starter "skus" list/);
-  assert.ok(!fs.existsSync(tpl('combined_order_status_email')));
+  assert.ok(!fs.existsSync(tpl('order-status-update')));
+  // folders are named as the BigCommerce admin lists the emails; commands also take the admin's spelling or the type ID
+  assert.deepEqual(fs.readdirSync(tpl()), ['password-reset']);
+  assert.deepEqual(fs.readdirSync(path.join(ws, 'fixtures')).sort(), ['_global.json', 'password-reset']);
+  for (const name of ['Password Reset', 'account_reset_password_email']) {
+    assert.match(await run('create', name), /Downloaded 1 template.*0 written, 1 already up to date/, name);
+  }
   out = await run('create', '--all');
   assert.match(out, /Downloaded 2 template.*1 written, 1 already up to date/);
-  assert.equal(fs.readFileSync(tpl('combined_order_status_email', 'body.html'), 'utf8'), remote.combined_order_status_email.body);
-  assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(tpl('combined_order_status_email', 'translations.json')))), ['en', 'fr']);
+  assert.equal(fs.readFileSync(tpl('order-status-update', 'body.html'), 'utf8'), remote.combined_order_status_email.body);
+  assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(tpl('order-status-update', 'translations.json')))), ['en', 'fr']);
   assert.ok(fs.existsSync(path.join(ws, 'fixtures', '_global.json')));
   // the first download also leaves a starter settings file with the usual preview SKUs
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(ws, 'email-builder.json'))), { skus: ['SM13', 'DPB', 'OFSUC', 'OTL'] });
@@ -136,7 +142,7 @@ try {
   assert.match(r.html, /Bonjour Jordan Rivera/);
 
   // warnings: unknown helper, missing phrase, missing placeholder argument
-  fs.appendFileSync(tpl('account_reset_password_email', 'body.html'), '{{lang "nope"}}{{money 5}}{{lang "reset_password"}}{{missing.value}}');
+  fs.appendFileSync(tpl('password-reset', 'body.html'), '{{lang "nope"}}{{money 5}}{{lang "reset_password"}}{{missing.value}}');
   r = await renderEmail(config, { typeId: 'account_reset_password_email' });
   assert.equal(r.error, null);
   assert.equal(r.warnings.length, 3, r.warnings.join(' | '));
@@ -150,7 +156,7 @@ try {
 
   // BigCommerce's conditionals and loop: comparisons, (if ...) inside another helper, or, unless and for
   const conditionals = (body) => {
-    fs.writeFileSync(tpl('account_reset_password_email', 'body.html'), body);
+    fs.writeFileSync(tpl('password-reset', 'body.html'), body);
     return renderEmail(config, { typeId: 'account_reset_password_email' });
   };
   r = await conditionals([
@@ -171,14 +177,14 @@ try {
   assert.match((await conditionals("{{#if 1 'nope' 2}}x{{/if}}")).error, /does not know the operator "nope"/);
 
   // join: a list glued with a separator, with limit and lastSeparator; an HTML separator needs triple braces
-  const listsFile = path.join(ws, 'fixtures', 'account_reset_password_email', 'lists.json');
+  const listsFile = path.join(ws, 'fixtures', 'password-reset', 'lists.json');
   fs.writeFileSync(listsFile, JSON.stringify({ lines: ['1 Main St', 'Austin', 'TX'], name: 'not a list' }));
-  fs.writeFileSync(tpl('account_reset_password_email', 'body.html'), "{{join lines ', '}}|{{{join lines '<br>'}}}|{{join lines '<br>'}}|{{join lines ', ' limit=2}}|{{join lines ', ' lastSeparator=' and '}}|[{{join missing ', '}}]");
+  fs.writeFileSync(tpl('password-reset', 'body.html'), "{{join lines ', '}}|{{{join lines '<br>'}}}|{{join lines '<br>'}}|{{join lines ', ' limit=2}}|{{join lines ', ' lastSeparator=' and '}}|[{{join missing ', '}}]");
   r = await renderEmail(config, { typeId: 'account_reset_password_email', fixture: 'lists' });
   assert.equal(r.error, null);
   assert.equal(r.html, '1 Main St, Austin, TX|1 Main St<br>Austin<br>TX|1 Main St&lt;br&gt;Austin&lt;br&gt;TX|1 Main St, Austin|1 Main St, Austin and TX|[]');
   assert.deepEqual(r.warnings, [], 'a list missing from the preview data renders empty, like any missing variable');
-  fs.writeFileSync(tpl('account_reset_password_email', 'body.html'), "[{{join name ', '}}]");
+  fs.writeFileSync(tpl('password-reset', 'body.html'), "[{{join name ', '}}]");
   r = await renderEmail(config, { typeId: 'account_reset_password_email', fixture: 'lists' });
   assert.equal(r.html, '[]');
   assert.match(r.warnings.join(' | '), /join helper was given something that is not a list/);
@@ -186,29 +192,29 @@ try {
 
   // create keeps local edits unless forced
   out = await run('create', '--all');
-  assert.match(out, /Kept your local edits to:\s+account_reset_password_email/);
+  assert.match(out, /Kept your local edits to:\s+password-reset/);
   await run('create', '--all', '--force');
-  assert.equal(fs.readFileSync(tpl('account_reset_password_email', 'body.html'), 'utf8'), remote.account_reset_password_email.body);
+  assert.equal(fs.readFileSync(tpl('password-reset', 'body.html'), 'utf8'), remote.account_reset_password_email.body);
 
   // publish: guards, dry run, real publish
-  const subjectFile = tpl('account_reset_password_email', 'subject.hbs');
+  const subjectFile = tpl('password-reset', 'subject.hbs');
   fs.writeFileSync(subjectFile, 'New subject for {{store.name}}\n');
-  assert.match(await run('status'), /account_reset_password_email\s+changed: subject/);
+  assert.match(await run('status'), /password-reset\s+changed: subject/);
   assert.match(await run('publish', '--all', '--dry-run'), /Dry run/);
   assert.match(await fails('publish', '--all'), /Not publishing without confirmation/);
   assert.equal(puts.length, 0);
 
-  const bodyFile = tpl('combined_order_status_email', 'body.html');
+  const bodyFile = tpl('order-status-update', 'body.html');
   const goodBody = fs.readFileSync(bodyFile, 'utf8');
   fs.writeFileSync(bodyFile, '{{#if order}}unclosed');
-  assert.match(await fails('publish', '--all', '--yes'), /blocked\s+combined_order_status_email: Handlebars syntax error/);
+  assert.match(await fails('publish', '--all', '--yes'), /blocked\s+order-status-update: Handlebars syntax error/);
   fs.writeFileSync(bodyFile, 'x'.repeat(65537));
   assert.match(await fails('publish', '--all', '--yes'), /truncates past 65,536/);
   assert.equal(puts.length, 0, 'a blocked template must stop the whole publish');
   fs.writeFileSync(bodyFile, goodBody);
 
   out = await run('publish', '--all', '--yes');
-  assert.match(out, /published\s+account_reset_password_email/);
+  assert.match(out, /published\s+password-reset/);
   assert.equal(puts.length, 1);
   assert.equal(puts[0].path, '/v3/marketing/email-templates/account_reset_password_email');
   assert.equal(puts[0].body.subject, 'New subject for {{store.name}}');
@@ -249,7 +255,7 @@ try {
   await run('env', 'add', 'storefront', '--store-hash', 'testhash', '--token', 'tok', '--channel', '12');
   assert.match(await run('env', 'list'), /storefront\s+store testhash, channel 12/);
   await run('create', '--all', '--env', 'storefront');
-  fs.writeFileSync(path.join(ws, 'templates', 'channel-12', 'account_reset_password_email', 'subject.hbs'), 'Channel subject\n');
+  fs.writeFileSync(path.join(ws, 'templates', 'channel-12', 'password-reset', 'subject.hbs'), 'Channel subject\n');
   out = await run('publish', 'account_reset_password_email', '--env', 'storefront', '--yes');
   assert.match(out, /Environment storefront: store testhash, channel 12/);
   assert.equal(puts.at(-1).query, '?channel_id=12');
@@ -307,20 +313,20 @@ try {
   assert.equal(fx.order.total.formatted, '£48.50');
   // every email offers it, and it is laid over that email's own default data
   assert.deepEqual(listFixtures(config, 'account_reset_password_email'), ['default', 'products']);
-  fs.writeFileSync(tpl('account_reset_password_email', 'body.html'), '{{#each order.products}}{{sku}} {{/each}}{{#each review.products}}{{link}} {{/each}}{{return.product.name}} {{account.reset_password_link}}');
+  fs.writeFileSync(tpl('password-reset', 'body.html'), '{{#each order.products}}{{sku}} {{/each}}{{#each review.products}}{{link}} {{/each}}{{return.product.name}} {{account.reset_password_link}}');
   r = await renderEmail(config, { typeId: 'account_reset_password_email', fixture: 'products' });
   assert.equal(r.html, 'T1 SHIRT-RED-M #review #review Tote https://example-store.mybigcommerce.com/login.php?action&#x3D;change_password&amp;c&#x3D;1&amp;t&#x3D;sample-token');
   // --template writes one email's own file instead, starting from its sample data
   out = await run('fixture', 'sku', '--template', 'account_reset_password_email', '--name', 'mine');
-  assert.match(out, /Wrote theme-emails\/fixtures\/account_reset_password_email\/mine\.json\nChoose "mine" under Preview data on account_reset_password_email/);
-  const mine = JSON.parse(fs.readFileSync(path.join(ws, 'fixtures', 'account_reset_password_email', 'mine.json')));
+  assert.match(out, /Wrote theme-emails\/fixtures\/password-reset\/mine\.json\nChoose "mine" under Preview data on password-reset/);
+  const mine = JSON.parse(fs.readFileSync(path.join(ws, 'fixtures', 'password-reset', 'mine.json')));
   assert.equal(mine.order.products.length, 2);
   assert.match(mine.account.reset_password_link, /sample-token/);
   // an email with a file of the same name keeps using its own, and the command says so
   out = await run('fixture', 'sku', '--name', 'mine');
-  assert.match(out, /These emails have a mine\.json of their own and keep using it\. Delete it to use the shared one:\n {2}account_reset_password_email\n/);
+  assert.match(out, /These emails have a mine\.json of their own and keep using it\. Delete it to use the shared one:\n {2}password-reset\n/);
   fs.rmSync(path.join(ws, 'fixtures', '_mine.json'));
-  fs.rmSync(path.join(ws, 'fixtures', 'account_reset_password_email', 'mine.json'));
+  fs.rmSync(path.join(ws, 'fixtures', 'password-reset', 'mine.json'));
   fs.writeFileSync(path.join(ws, 'email-builder.json'), JSON.stringify({ skus: ['T1', 'NOPE'] }));
   assert.match(await fails('fixture', 'sku', '--name', 'broken'), /No product or variant in this store's catalog has the SKU "NOPE"/);
   assert.ok(!fs.existsSync(path.join(ws, 'fixtures', '_broken.json')), 'nothing is written when a SKU is missing');
@@ -341,7 +347,7 @@ try {
   // lint: email client support from caniemail data, with positions that survive Handlebars
   const settingsFile = path.join(ws, 'email-builder.json');
   fs.writeFileSync(settingsFile, JSON.stringify({ lint: { clients: ['outlook.windows'] } }));
-  const resetBody = tpl('account_reset_password_email', 'body.html');
+  const resetBody = tpl('password-reset', 'body.html');
   fs.writeFileSync(resetBody, [
     '<html><head><style>',
     '.a { display: flex; }',
@@ -351,7 +357,7 @@ try {
     '</body></html>',
   ].join('\n'));
   out = await fails('lint', 'account_reset_password_email');
-  assert.match(out, /theme-emails\/templates\/global\/account_reset_password_email\/body\.html/);
+  assert.match(out, /theme-emails\/templates\/global\/password-reset\/body\.html/);
   assert.match(out, /2:6\s+display:flex {2}not supported in outlook \(windows\)/);
   assert.match(out, /5:1\s+display:grid {2}not supported in outlook \(windows\)/);
   assert.match(out, /2 unsupported feature\(s\)\./);
@@ -363,7 +369,7 @@ try {
   assert.match(out, /1 unsupported feature/);
   // table-based markup passes, so lint can gate CI
   fs.writeFileSync(resetBody, '<html><body><table width="100%"><tr><td align="center" style="padding:10px;color:#333333">{{lang "reset_password" name=store.name}}</td></tr></table></body></html>');
-  assert.match(await run('lint', 'account_reset_password_email'), /No problems found/);
+  assert.match(await run('lint', 'password-reset'), /No problems found/);
   // caniemail has no word-wrap data for Gmail on iOS: that pair is skipped and the rest is still checked
   const lintSettings = fs.readFileSync(settingsFile, 'utf8');
   fs.writeFileSync(settingsFile, JSON.stringify({ lint: { clients: ['gmail.ios', 'outlook.windows'] } }));
@@ -383,6 +389,7 @@ try {
   const list = await (await fetch(`${server.url}/api/templates`)).json();
   assert.equal(list.templates.length, 2);
   assert.deepEqual(list.templates.find((t) => t.typeId === 'combined_order_status_email').fixtures, ['default', 'products']);
+  assert.deepEqual(list.templates.map((t) => [t.name, t.folder]), [['Order Status Update', 'order-status-update'], ['Password Reset', 'password-reset']]);
   const frame = await (await fetch(`${server.url}/frame?type=combined_order_status_email&fixture=products`)).text();
   assert.match(frame, /<head><base target="_blank">/);
   const meta = await (await fetch(`${server.url}/api/render?type=account_reset_password_email`)).json();
@@ -417,14 +424,14 @@ try {
     assert.match(String(e.stderr), /No environment selected\. Choose one first:\s+email-builder env use staging/);
   }
   assert.ok(fs.existsSync(path.join(freshWs, '.env.staging')));
-  assert.ok(fs.existsSync(path.join(freshWs, 'templates', 'global', 'combined_order_status_email', 'body.html')));
+  assert.ok(fs.existsSync(path.join(freshWs, 'templates', 'global', 'order-status-update', 'body.html')));
   assert.equal(JSON.parse(fs.readFileSync(path.join(freshWs, 'fixtures', '_global.json'))).store.name, 'Example Store');
   assert.ok(fs.existsSync(path.join(freshWs, 'fixtures', '_products.json')));
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(freshWs, 'email-builder.json'))), { skus: ['T1'] }, 'a settings file that is already there is never replaced');
   // rerunning is safe: no questions, local edits kept
-  fs.appendFileSync(path.join(freshWs, 'templates', 'global', 'combined_order_status_email', 'body.html'), '<!-- mine -->');
+  fs.appendFileSync(path.join(freshWs, 'templates', 'global', 'order-status-update', 'body.html'), '<!-- mine -->');
   out = await runIn(fresh, 'setup', 'staging');
-  assert.match(out, /staging: already saved[\s\S]*Kept your local edits to:\s+combined_order_status_email[\s\S]*Setup complete/);
+  assert.match(out, /staging: already saved[\s\S]*Kept your local edits to:\s+order-status-update[\s\S]*Setup complete/);
   // several environments in one command
   await runIn(fresh, 'env', 'add', 'production', '--store-hash', 'testhash', '--token', 'tok');
   await runIn(fresh, 'env', 'use', 'production');
@@ -437,6 +444,16 @@ try {
   } catch (e) {
     assert.match(String(e.stderr), /describe one store/);
   }
+  // a project from before folders took the admin names is renamed in place by the next command
+  for (const parent of [path.join(freshWs, 'templates', 'global'), path.join(freshWs, 'fixtures')]) {
+    fs.renameSync(path.join(parent, 'order-status-update'), path.join(parent, 'combined_order_status_email'));
+  }
+  out = await runIn(fresh, 'status');
+  assert.match(out, /Renamed 2 folder\(s\) to match the names in the BigCommerce admin, for example theme-emails\/templates\/global\/order-status-update\n/);
+  assert.match(out, /order-status-update {2}changed: body/);
+  assert.deepEqual(fs.readdirSync(path.join(freshWs, 'templates', 'global')), ['order-status-update', 'password-reset']);
+  assert.ok(fs.existsSync(path.join(freshWs, 'fixtures', 'order-status-update', 'default.json')));
+  assert.doesNotMatch(await runIn(fresh, 'status'), /Renamed/);
   // bad credentials stop it before anything is downloaded
   const bad = fs.mkdtempSync(path.join(os.tmpdir(), 'email-builder-bad-'));
   try {

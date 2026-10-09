@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { bc } from './api.js';
 import { PACKAGE_ROOT } from './config.js';
-import { sharedFixtureFile } from './render.js';
+import { folderName } from './names.js';
+import { fixtureDir, sharedFixtureFile } from './render.js';
 import type { Config, EmailProduct, V2Store, V3Product, V3Variant } from './types.js';
 
 const defaultsDir = path.join(PACKAGE_ROOT, 'defaults');
@@ -23,13 +24,13 @@ export function ensureDefaultFixtures(config: Config, typeIds: string[]): string
     created.push('fixtures/_global.json');
   }
   for (const typeId of typeIds) {
-    const file = path.join(config.fixturesDir, typeId, 'default.json');
+    const file = path.join(fixtureDir(config, typeId), 'default.json');
     if (fs.existsSync(file)) continue;
     const shipped = path.join(defaultsDir, `${typeId}.json`);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     if (fs.existsSync(shipped)) fs.copyFileSync(shipped, file);
     else fs.writeFileSync(file, '{}\n');
-    created.push(`fixtures/${typeId}/default.json`);
+    created.push(`fixtures/${folderName(typeId)}/default.json`);
   }
   return created;
 }
@@ -145,7 +146,7 @@ export async function buildSkuFixture(config: Config, skus: string[], options: S
   }
 
   // One email's own fixture starts from its sample data so everything else stays filled in.
-  const dir = path.join(config.fixturesDir, typeId);
+  const dir = fixtureDir(config, typeId);
   const base = [path.join(dir, 'default.json'), path.join(defaultsDir, `${typeId}.json`)].find((f) => fs.existsSync(f));
   const data = base ? (JSON.parse(fs.readFileSync(base, 'utf8')) as Json) : {};
   for (const [key, value] of Object.entries(placed)) data[key] = { ...(isObject(data[key]) ? data[key] : {}), ...value };

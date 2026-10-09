@@ -6,6 +6,7 @@ The [README](../README.md) covers the everyday flow. This page has the detail.
 - [Environments](#environments)
 - [Make targets](#make-targets)
 - [Files](#files)
+- [Email names](#email-names)
 - [Settings file](#settings-file)
 - [Preview data](#preview-data)
 - [How the preview differs from a real email](#how-the-preview-differs-from-a-real-email)
@@ -30,8 +31,9 @@ The [README](../README.md) covers the everyday flow. This page has the detail.
 | `fixture store` | Puts the store's own name, logo, domain, address and CDN path into the preview data every email shares. Images in the stock templates need it. |
 | `init` | Sets up a single environment called `default`. `setup` does this and more. |
 
-A template is named by its type ID (`combined_order_status_email`). A path to
-its folder works too.
+A template is named by its folder (`order-status-update`). A path to the
+folder, the admin name in quotes (`"Order Status Update"`) and the API type
+ID (`combined_order_status_email`) work too. See [Email names](#email-names).
 
 Add `--env <name>` to any command to use that environment for that command
 only.
@@ -82,12 +84,41 @@ the tool is installed globally.
     theme-emails/
       .env, .env.<name>, .active-env                 credentials and selection (gitignored)
       email-builder.json                             team settings; a starter is added with the templates
-      templates/global/<type_id>/body.html           the email body (Handlebars)
-      templates/global/<type_id>/subject.hbs         the subject line
-      templates/global/<type_id>/translations.json   phrases, keyed by locale
+      templates/global/<email>/body.html             the email body (Handlebars)
+      templates/global/<email>/subject.hbs           the subject line
+      templates/global/<email>/translations.json     phrases, keyed by locale
       fixtures/_global.json                          preview data shared by every email
-      fixtures/<type_id>/default.json                preview data for one email
+      fixtures/<email>/default.json                  preview data for one email
       fixtures/_products.json                        written by `fixture sku`, offered for every email
+
+## Email names
+
+The API knows each email by a type ID, and does not return the name the admin
+shows under Marketing > Transactional Emails. The tool keeps that list itself
+and names folders after the admin name. The preview lists emails by the admin
+name too.
+
+| In the admin | Folder | API type ID |
+| --- | --- | --- |
+| Abandoned Cart | `abandoned-cart` | `abandoned_cart_email` |
+| Account Created | `account-created` | `createaccount_email` |
+| Account Settings Edited | `account-settings-edited` | `account_details_changed_email` |
+| Gift Certificate Recipient | `gift-certificate-recipient` | `giftcertificate_email` |
+| Guest Account Created | `guest-account-created` | `createguestaccount_email` |
+| Guest Order Access | `guest-order-access` | `guest_order_access_email` |
+| Order Email | `order-email` | `invoice_email` |
+| Order Notification | `order-notification` | `ordermessage_notification` |
+| Order ready for pickup | `order-ready-for-pickup` | `order_ready_for_pickup` |
+| Order Status Update | `order-status-update` | `combined_order_status_email` |
+| Password Reset | `password-reset` | `account_reset_password_email` |
+| Product Review Request | `product-review-request` | `product_review_email` |
+| Return Requested | `return-requested` | `return_confirmation_email` |
+| Return Status Change | `return-status-change` | `return_statuschange_email` |
+| Sign-in Link Request | `sign-in-link-request` | `passwordless_login_email` |
+
+An email BigCommerce adds later keeps its type ID as its folder name until
+this list catches up. A project whose folders are still named by type ID is
+renamed in place the next time you run a command.
 
 ## Settings file
 
@@ -117,8 +148,7 @@ with a leading underscore, such as `_products.json`, is shared: every email
 offers it, and it is merged over that email's `default.json`. The shape for each email is in BigCommerce's
 [email object reference](https://docs.bigcommerce.com/developer/docs/admin/store-configuration/emails/email-object-reference/global-email-object).
 
-Starter fixtures ship for `combined_order_status_email` and
-`account_reset_password_email`. Other emails start with an empty fixture to
+Starter fixtures ship for `order-status-update` and `password-reset`. Other emails start with an empty fixture to
 fill in from that reference.
 
 The customer, order number, tracking details and store name are made up.
@@ -169,7 +199,7 @@ Handlebars render.
 bundled in the `caniemail` npm package, and reports the line and column in
 `body.html`:
 
-    theme-emails/templates/global/combined_order_status_email/body.html
+    theme-emails/templates/global/order-status-update/body.html
       4:13     display:flex  not supported in outlook (windows)
 
 The same results show under the preview, and `publish` mentions them without
