@@ -34,6 +34,19 @@ export function readSettings(config: Config): Settings {
   }
 }
 
+/** Saves the list of features "lint" leaves alone. Everything else in the file is kept. */
+export function writeLintIgnore(config: Config, ignore: string[]): void {
+  const settings = readSettings(config);
+  settings.lint = { ...settings.lint, ignore };
+  // One entry per line, except a list short enough to read on one, such as the SKUs.
+  const json = JSON.stringify(settings, null, 2).replace(/\[\n\s+([^[\]{}]*?)\n\s+\]/g, (list: string, items: string) => {
+    const inline = `[${items.replace(/,\n\s+/g, ', ')}]`;
+    return inline.length <= 80 ? inline : list;
+  });
+  fs.mkdirSync(config.root, { recursive: true });
+  fs.writeFileSync(settingsPath(config), `${json}\n`);
+}
+
 /** The saved SKU list, tidied: strings only, no blanks, no repeats. */
 export function readSkus(config: Config): string[] {
   const { skus } = readSettings(config);

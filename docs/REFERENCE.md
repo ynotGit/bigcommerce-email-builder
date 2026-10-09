@@ -25,7 +25,7 @@ The [README](../README.md) covers the everyday flow. This page has the detail.
 | `start [template]` | Preview server with live reload. `--port` changes the port. |
 | `publish <template...>` | Uploads the named templates; `--all` takes every changed one. Shows the plan and asks first. `--dry-run` stops after the plan; `--yes` skips the question. |
 | `status` | Lists templates that differ from the store. |
-| `lint [template...]` | Flags unsupported HTML and CSS. Exits non-zero if it finds any, so CI can use it. `--partial` also lists features that only partly work. |
+| `lint [template...]` | Flags unsupported HTML and CSS. Exits non-zero if it finds any, so CI can use it. `--partial` also lists features that only partly work. `--accept` adds everything it would report to `lint.ignore` instead; see [Email client check](#email-client-check). |
 | `create <template>` | Downloads one template. `--all` downloads every one. With no name it lists what the store has. Keeps local edits unless you pass `--force`. Adds a starter `email-builder.json` if the project has none. |
 | `fixture sku` | Builds preview data with the products in the `skus` list, for every email to use. `--template` writes it for one email only; `--name` sets the file name. |
 | `fixture store` | Puts the store's own name, logo, domain, address and CDN path into the preview data every email shares. Images in the stock templates need it. |
@@ -217,6 +217,19 @@ bundled in the `caniemail` npm package, and reports the line and column in
 
 The same results show under the preview, and `publish` mentions them without
 blocking. Run `npm update caniemail` in the tool's folder for newer data.
+
+BigCommerce's own templates start with several hundred findings, nearly all
+harmless: rounded corners that Outlook on Windows draws square, a media query
+it skips, and so on. `lint --accept` clears that backlog. Run it once after
+`setup`, before you edit anything: it adds each feature the templates use
+today to `lint.ignore` in the settings file and lists what it added. From
+then on the check, the preview and `publish` report only what you introduce.
+
+It changes no template, and it accepts by feature, not by line: once
+`border-radius` is on the list, a new use of it is not reported either. To
+have a feature checked again, delete its line from `lint.ignore`. Name
+templates to accept only what those use, and add `--partial` to accept the
+partly supported features as well.
 
 Limits: Handlebars tags are hidden from the checker, so markup that only
 exists after rendering (for example HTML inside a phrase) is not checked.

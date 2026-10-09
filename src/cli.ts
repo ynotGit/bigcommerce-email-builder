@@ -14,7 +14,7 @@ import { lintTemplate, readLintSettings, summariseClients } from './lint.js';
 import { folderName, renameLegacyNames, toTypeId as nameToTypeId } from './names.js';
 import { checkSyntax } from './render.js';
 import { startServer } from './server.js';
-import { SETTINGS_FILE, ensureSettings, readSkus, settingsPath } from './settings.js';
+import { SETTINGS_FILE, ensureSettings, readSkus, settingsPath, writeLintIgnore } from './settings.js';
 import { diffTemplate, listLocalTemplates, readLocalTemplate, templateDir, toApiPayload, writeLocalTemplate } from './store.js';
 import type { Config, Flags, LocalTemplate, RemoteTemplate, TemplatePart } from './types.js';
 
@@ -31,6 +31,7 @@ Every day
 Extras
   status                   List templates that differ from the store
   lint                     Flag HTML and CSS that email clients do not support
+  lint --accept            Stop flagging what the templates already use, so new problems stand out
   fixture sku              Show the products from your "skus" list in every email's preview
   fixture store            Show the store's own name and logo in the preview
   env                      List environments; * marks the selected one
@@ -178,6 +179,21 @@ async function publish(config: Config, flags: Flags, args: string[]): Promise<vo
   }
 }
 
+/**
+ * BigCommerce's own templates use plenty that some email client lacks, nearly
+ * all of it harmless. Accepting what is there today, once, leaves the check
+ * reporting only what is added afterwards.
+ */
+function acceptFindings(config: Config, typeIds: string[], ignored: string[], partial: boolean): void {
+  const found = new Set(typeIds.flatMap((typeId) => lintTemplate(config, typeId, { partial }).map((issue) => issue.title)));
+  const checked = `Checked ${typeIds.length} template(s).`;
+  if (!found.size) return console.log(`${checked} ${success('Nothing to accept: no problems are being reported.')}`);
+  const accepted = [...found].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
+  writeLintIgnore(config, [...ignored, ...accepted]);
+  console.log(`${checked} ${success(`Accepted ${accepted.length} feature(s) they already use:`)}\n  ${accepted.join('\n  ')}`);
+  console.log(`\n${success(`Wrote ${display(settingsPath(config))}`)}\nThey are on its "lint.ignore" list, so they are no longer reported, in these templates or in anything you add later.\nDelete a line there to have that feature checked again.`);
+}
+
 /** Prints compatibility problems per template. Returns how many unsupported features it found. */
 function lint(config: Config, flags: Flags, args: string[]): number {
   const local = listLocalTemplates(config);
@@ -190,6 +206,10 @@ function lint(config: Config, flags: Flags, args: string[]): number {
   }
 
   const settings = readLintSettings(config);
+  if (flags.accept) {
+    acceptFindings(config, typeIds, settings.ignore, Boolean(flags.partial));
+    return 0;
+  }
   let unsupported = 0;
   let partial = 0;
   for (const typeId of typeIds) {

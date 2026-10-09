@@ -425,6 +425,34 @@ try {
   assert.match(out, /2:6\s+word-wrap {2}not supported in outlook \(windows\)\n/);
   assert.match(out, /3:22\s+display:grid {2}not supported in outlook \(windows\)\n/);
   assert.match(out, /Checked 1 template\(s\) against 2 email client\(s\)[\s\S]*2 unsupported feature\(s\)\./);
+  // lint --accept: what the templates use today goes on the ignore list, once, so later runs report only what is new
+  fs.writeFileSync(settingsFile, '{\n  "skus": ["T1", "SHIRT-RED-M"],\n  "lint": { "clients": ["outlook.windows"] }\n}\n');
+  fs.writeFileSync(resetBody, '<html><head><style>\n.a { display: flex; border-radius: 4px; }\n</style></head><body><div style="display:grid">x</div></body></html>');
+  out = await run('lint', '--accept');
+  assert.match(out, /Checked 2 template\(s\)\. Accepted 3 feature\(s\) they already use:\n {2}border-radius\n {2}display:flex\n {2}display:grid\n\nWrote theme-emails\/email-builder\.json\n/);
+  // the rest of the file is kept, including the built-in exception that an explicit list would otherwise drop
+  assert.equal(fs.readFileSync(settingsFile, 'utf8'), [
+    '{',
+    '  "skus": ["T1", "SHIRT-RED-M"],',
+    '  "lint": {',
+    '    "clients": ["outlook.windows"],',
+    '    "ignore": ["<body> element", "border-radius", "display:flex", "display:grid"]',
+    '  }',
+    '}',
+    '',
+  ].join('\n'));
+  assert.match(await run('lint'), /No problems found/);
+  assert.match(await run('lint', '--accept'), /Nothing to accept: no problems are being reported\./);
+  // something added afterwards is still reported, and only that
+  fs.appendFileSync(resetBody, '<p style="opacity:0.5;display:flex">y</p>');
+  out = await fails('lint');
+  assert.match(out, /opacity {2}not supported in outlook \(windows\)/);
+  assert.match(out, /\n1 unsupported feature\(s\)\./);
+  // a list too long for one line goes one feature to a line, so one is easy to delete
+  fs.writeFileSync(resetBody, '<html><head><style>\n.a { box-sizing: border-box; visibility: hidden; }\n</style></head><body><p style="opacity:0.5">y</p></body></html>');
+  out = await run('lint', '--accept', 'password-reset');
+  assert.match(out, /Checked 1 template\(s\)\. Accepted 3 feature\(s\) they already use:\n {2}box-sizing\n {2}opacity\n {2}visibility\n/);
+  assert.match(fs.readFileSync(settingsFile, 'utf8'), /"skus": \["T1", "SHIRT-RED-M"\],[\s\S]*"ignore": \[\n {6}"<body> element",\n {6}"border-radius",\n {6}"display:flex",\n {6}"display:grid",\n {6}"box-sizing",\n {6}"opacity",\n {6}"visibility"\n {4}\]/);
   fs.writeFileSync(settingsFile, lintSettings);
   fs.writeFileSync(resetBody, '<div style="display:grid">x</div>');
 

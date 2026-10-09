@@ -76,6 +76,7 @@ another store without switching, add `--env production`.
 | To | Run |
 | --- | --- |
 | Check for HTML and CSS that email clients do not support | `npx email-builder lint` |
+| Stop that check flagging what BigCommerce's own templates already use | `npx email-builder lint --accept`, once, before you start editing |
 | See which emails differ from the store | `npx email-builder status` |
 | Show real products in every email's preview | `npx email-builder fixture sku`, then choose "products" under Preview data. It uses the `skus` list in `theme-emails/email-builder.json`, which starts with SM13, DPB, OFSUC and OTL; edit it for other products |
 
