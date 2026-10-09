@@ -326,6 +326,16 @@ try {
   // table-based markup passes, so lint can gate CI
   fs.writeFileSync(resetBody, '<html><body><table width="100%"><tr><td align="center" style="padding:10px;color:#333333">{{lang "reset_password" name=store.name}}</td></tr></table></body></html>');
   assert.match(await run('lint', 'account_reset_password_email'), /No problems found/);
+  // caniemail has no word-wrap data for Gmail on iOS: that pair is skipped and the rest is still checked
+  const lintSettings = fs.readFileSync(settingsFile, 'utf8');
+  fs.writeFileSync(settingsFile, JSON.stringify({ lint: { clients: ['gmail.ios', 'outlook.windows'] } }));
+  fs.writeFileSync(resetBody, '<html><head><style>\n.a { word-wrap: break-word; }\n</style></head><body><div style="display:grid">x</div></body></html>');
+  out = await fails('lint', 'account_reset_password_email');
+  assert.doesNotMatch(out, /not found on/);
+  assert.match(out, /2:6\s+word-wrap {2}not supported in outlook \(windows\)\n/);
+  assert.match(out, /3:22\s+display:grid {2}not supported in outlook \(windows\)\n/);
+  assert.match(out, /Checked 1 template\(s\) against 2 email client\(s\)[\s\S]*2 unsupported feature\(s\)\./);
+  fs.writeFileSync(settingsFile, lintSettings);
   fs.writeFileSync(resetBody, '<div style="display:grid">x</div>');
 
   // preview server

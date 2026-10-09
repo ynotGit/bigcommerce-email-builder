@@ -167,6 +167,8 @@ blocking. Run `npm update caniemail` in the tool's folder for newer data.
 
 Limits: Handlebars tags are hidden from the checker, so markup that only
 exists after rendering (for example HTML inside a phrase) is not checked.
+caniemail.com has no data for some feature and client pairs (for example
+`word-wrap` in Gmail on iOS); those are skipped, not reported.
 
 ## Safety
 

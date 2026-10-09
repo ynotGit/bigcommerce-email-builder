@@ -1,7 +1,7 @@
 // Checks a template's HTML and CSS against caniemail.com's support data
 // (bundled in the `caniemail` package) and reports what the email clients you
 // care about cannot render.
-import { caniemail, type CanIEmailOptions } from 'caniemail';
+import { caniemail, rawData, type CanIEmailOptions } from 'caniemail';
 import { readSettings } from './settings.js';
 import { readLocalTemplate } from './store.js';
 import type { CompatIssue, Config, LintSettings } from './types.js';
@@ -26,6 +26,26 @@ export function readLintSettings(config: Config): LintSettings {
     clients: Array.isArray(lint?.clients) && lint.clients.length ? lint.clients : DEFAULT_CLIENTS,
     ignore: Array.isArray(lint?.ignore) ? lint.ignore : DEFAULT_IGNORE,
   };
+}
+
+// caniemail.com has no data for some feature and client pairs (word-wrap on
+// Gmail for iOS, for one), and the library's check throws on them, failing the
+// whole email. Its own feature listing skips such pairs, so the check does the
+// same: each gap is filled in as supported, which reports nothing.
+type Stats = Record<string, Record<string, Record<string, string>>>;
+const allStats = rawData.data.map((feature) => feature.stats as Stats);
+const platformsByFamily = new Map<string, Set<string>>();
+for (const stats of allStats) {
+  for (const [family, platforms] of Object.entries(stats)) {
+    const known = platformsByFamily.get(family) ?? new Set<string>();
+    for (const platform of Object.keys(platforms)) known.add(platform);
+    platformsByFamily.set(family, known);
+  }
+}
+for (const stats of allStats) {
+  for (const [family, platforms] of platformsByFamily) {
+    for (const platform of platforms) (stats[family] ??= {})[platform] ??= { 'no-data': 'y' };
+  }
 }
 
 /** Same length, same line breaks, no content: keeps every line and column where it was. */
