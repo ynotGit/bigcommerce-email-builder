@@ -86,7 +86,7 @@ the tool is installed globally.
       email-builder.json                             team settings; a starter is added with the templates
       templates/global/<email>/body.html             the email body (Handlebars)
       templates/global/<email>/subject.hbs           the subject line
-      templates/global/<email>/translations.json     phrases, keyed by locale
+      templates/global/<email>/phrases.json          phrases, keyed by locale
       fixtures/_global.json                          preview data shared by every email
       fixtures/<email>/default.json                  preview data for one email
       fixtures/_products.json                        written by `fixture sku`, offered for every email
@@ -188,7 +188,7 @@ when the logo or store details do.
 BigCommerce has no API that renders a template, so the preview is a local
 Handlebars render.
 
-- `{{lang 'key' name=value}}` works: it reads `translations.json` for the
+- `{{lang 'key' name=value}}` works: it reads `phrases.json` for the
   selected language and fills `{name}` placeholders.
 - The Handlebars built-ins (`if`, `unless`, `each`, `with`) work.
 - BigCommerce's own conditionals and loop work: `if` and `unless` with a

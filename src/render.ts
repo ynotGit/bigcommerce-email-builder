@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Handlebars from 'handlebars';
 import { BODY_LIMIT, display } from './config.js';
-import { folderName } from './names.js';
+import { folderName, PHRASES_FILE } from './names.js';
 import { readLocalTemplate, templateDir } from './store.js';
 import type { Config, LocalTemplate, RenderRequest, RenderResult, TranslationMap } from './types.js';
 
@@ -90,7 +90,7 @@ function buildHandlebars({ translations, locale, warn }: HelperContext): Handleb
   hbs.registerHelper('lang', (key: string, options: Handlebars.HelperOptions) => {
     const phrase = translations[locale]?.[key] ?? translations.en?.[key];
     if (phrase === undefined) {
-      warn(`No "${key}" phrase for locale "${locale}" in translations.json`);
+      warn(`No "${key}" phrase for locale "${locale}" in ${PHRASES_FILE}`);
       return key;
     }
     const args = (options?.hash ?? {}) as Json;

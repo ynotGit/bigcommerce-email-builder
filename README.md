@@ -52,9 +52,9 @@ Open http://localhost:4321. Each email has a folder named as the BigCommerce
 admin lists it, so "Order Status Update" is `order-status-update`. Edit its
 files and the preview reloads when you save:
 
-    theme-emails/templates/global/<email>/body.html           the email
-    theme-emails/templates/global/<email>/subject.hbs         the subject line
-    theme-emails/templates/global/<email>/translations.json   the phrases
+    theme-emails/templates/global/<email>/body.html      the email
+    theme-emails/templates/global/<email>/subject.hbs    the subject line
+    theme-emails/templates/global/<email>/phrases.json   the phrases
 
 When it looks right:
 

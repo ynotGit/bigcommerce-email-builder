@@ -1,10 +1,10 @@
 // Templates on disk, in a folder named after the email as the admin lists it (see names.ts):
 //   templates/<scope>/<email>/body.html
 //   templates/<scope>/<email>/subject.hbs
-//   templates/<scope>/<email>/translations.json   { "en": { "key": "phrase" } }
+//   templates/<scope>/<email>/phrases.json   { "en": { "key": "phrase" } }
 import fs from 'node:fs';
 import path from 'node:path';
-import { folderName, toTypeId } from './names.js';
+import { folderName, PHRASES_FILE, toTypeId } from './names.js';
 import type { Config, LocalTemplate, RemoteTemplate, RemoteTranslation, TemplatePart, TranslationMap } from './types.js';
 
 const readIf = (file: string): string | null => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null);
@@ -37,13 +37,13 @@ export function readLocalTemplate(config: Config, typeId: string): LocalTemplate
   const dir = templateDir(config, typeId);
   const body = readIf(path.join(dir, 'body.html'));
   if (body === null) return null;
-  const rawTranslations = readIf(path.join(dir, 'translations.json'));
+  const rawTranslations = readIf(path.join(dir, PHRASES_FILE));
   let translations: TranslationMap = {};
   if (rawTranslations) {
     try {
       translations = JSON.parse(rawTranslations) as TranslationMap;
     } catch (err) {
-      throw new Error(`${folderName(typeId)}/translations.json is not valid JSON: ${(err as Error).message}`);
+      throw new Error(`${folderName(typeId)}/${PHRASES_FILE} is not valid JSON: ${(err as Error).message}`);
     }
   }
   return {
@@ -61,7 +61,7 @@ export function writeLocalTemplate(config: Config, remote: RemoteTemplate): void
   fs.writeFileSync(path.join(dir, 'body.html'), remote.body ?? '');
   fs.writeFileSync(path.join(dir, 'subject.hbs'), `${remote.subject ?? ''}\n`);
   fs.writeFileSync(
-    path.join(dir, 'translations.json'),
+    path.join(dir, PHRASES_FILE),
     `${JSON.stringify(translationsToMap(remote.translations), null, 2)}\n`,
   );
 }
@@ -75,12 +75,12 @@ const withSortedKeys = (value: unknown): string =>
 
 /** Which parts of the local template differ from what the store has. */
 export function diffTemplate(local: LocalTemplate, remote: RemoteTemplate | undefined): TemplatePart[] {
-  if (!remote) return ['body', 'subject', 'translations'];
+  if (!remote) return ['body', 'subject', 'phrases'];
   const changed: TemplatePart[] = [];
   if (local.body !== (remote.body ?? '')) changed.push('body');
   if (local.subject !== (remote.subject ?? '')) changed.push('subject');
   if (withSortedKeys(local.translations) !== withSortedKeys(translationsToMap(remote.translations))) {
-    changed.push('translations');
+    changed.push('phrases');
   }
   return changed;
 }

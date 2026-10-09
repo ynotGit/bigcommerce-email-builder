@@ -10,7 +10,7 @@ import { buildSkuFixture, buildStoreFixture, ensureDefaultFixtures } from './fix
 import { env } from './env.js';
 import { init, saveEnvironment } from './init.js';
 import { lintTemplate, readLintSettings, summariseClients } from './lint.js';
-import { folderName, renameLegacyFolders, toTypeId as nameToTypeId } from './names.js';
+import { folderName, renameLegacyNames, toTypeId as nameToTypeId } from './names.js';
 import { checkSyntax } from './render.js';
 import { startServer } from './server.js';
 import { SETTINGS_FILE, ensureSettings, readSkus, settingsPath } from './settings.js';
@@ -62,11 +62,11 @@ function parseArgs(argv: string[]): { flags: Flags; positional: string[] } {
 /** "templates/global/order-email/", "order-email" and the type ID "invoice_email" all name the same template. */
 const toTypeId = (arg: string): string => nameToTypeId(path.basename(arg.replace(/[\\/]+$/, '')));
 
-/** Projects from before folders took the admin names are brought into line, and told so. */
-function renameFolders(config: Config): void {
-  const renamed = renameLegacyFolders(config);
+/** Projects from before folders and the phrases file took the admin's names are brought into line, and told so. */
+function renameOldNames(config: Config): void {
+  const renamed = renameLegacyNames(config);
   const [example] = renamed;
-  if (example) console.log(`Renamed ${renamed.length} folder(s) to match the names in the BigCommerce admin, for example ${display(example)}\n`);
+  if (example) console.log(`Renamed ${renamed.length} file(s) or folder(s) to match the names in the BigCommerce admin, for example ${display(example)}\n`);
 }
 
 const where = (config: Config): string => (config.channelId ? `channel ${config.channelId}` : 'the global templates');
@@ -277,7 +277,7 @@ async function setup(flags: Flags, args: string[]): Promise<void> {
   // Setup never chooses an environment for you. It only borrows the first one
   // named to download from; picking where commands point is left as an explicit step.
   const config = loadConfig({ ...flags, env: name });
-  renameFolders(config);
+  renameOldNames(config);
 
   console.log(`\nStep 2 of 3: templates, downloaded from ${name} (store ${config.storeHash})`);
   await create(config, { all: true, chained: true }, []);
@@ -334,7 +334,7 @@ async function main(): Promise<void> {
 
   const config = loadConfig(flags);
   if (['create', 'publish', 'status', 'fixture'].includes(command)) announce(config);
-  if (['create', 'start', 'publish', 'status', 'lint', 'fixture'].includes(command)) renameFolders(config);
+  if (['create', 'start', 'publish', 'status', 'lint', 'fixture'].includes(command)) renameOldNames(config);
   switch (command) {
     case 'create': return create(config, flags, positional);
     case 'start': return start(config, positional);

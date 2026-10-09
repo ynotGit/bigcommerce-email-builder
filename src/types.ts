@@ -13,7 +13,7 @@ export interface RemoteTemplate {
   translations: RemoteTranslation[];
 }
 
-/** Phrases keyed by locale, the shape translations.json uses on disk. */
+/** Phrases keyed by locale, the shape phrases.json uses on disk. */
 export type TranslationMap = Record<string, Record<string, string>>;
 
 export interface LocalTemplate {
@@ -23,7 +23,7 @@ export interface LocalTemplate {
   translations: TranslationMap;
 }
 
-export type TemplatePart = 'body' | 'subject' | 'translations';
+export type TemplatePart = 'body' | 'subject' | 'phrases';
 
 // ---- Tool configuration --------------------------------------------------
 

@@ -113,7 +113,7 @@ try {
   out = await run('create', '--all');
   assert.match(out, /Downloaded 2 template.*1 written, 1 already up to date/);
   assert.equal(fs.readFileSync(tpl('order-status-update', 'body.html'), 'utf8'), remote.combined_order_status_email.body);
-  assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(tpl('order-status-update', 'translations.json')))), ['en', 'fr']);
+  assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(tpl('order-status-update', 'phrases.json')))), ['en', 'fr']);
   assert.ok(fs.existsSync(path.join(ws, 'fixtures', '_global.json')));
   // the first download also leaves a starter settings file with the usual preview SKUs
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(ws, 'email-builder.json'))), { skus: ['SM13', 'DPB', 'OFSUC', 'OTL'] });
@@ -473,14 +473,17 @@ try {
   } catch (e) {
     assert.match(String(e.stderr), /describe one store/);
   }
-  // a project from before folders took the admin names is renamed in place by the next command
+  // a project from before folders and the phrases file took the admin's names is renamed in place by the next command
   for (const parent of [path.join(freshWs, 'templates', 'global'), path.join(freshWs, 'fixtures')]) {
     fs.renameSync(path.join(parent, 'order-status-update'), path.join(parent, 'combined_order_status_email'));
   }
+  const freshTpl = (...parts) => path.join(freshWs, 'templates', 'global', ...parts);
+  for (const email of ['combined_order_status_email', 'password-reset']) fs.renameSync(freshTpl(email, 'phrases.json'), freshTpl(email, 'translations.json'));
   out = await runIn(fresh, 'status');
-  assert.match(out, /Renamed 2 folder\(s\) to match the names in the BigCommerce admin, for example theme-emails\/templates\/global\/order-status-update\n/);
-  assert.match(out, /order-status-update {2}changed: body/);
+  assert.match(out, /Renamed 4 file\(s\) or folder\(s\) to match the names in the BigCommerce admin, for example theme-emails\/templates\/global\/order-status-update\n/);
+  assert.match(out, /order-status-update {2}changed: body\n/, 'the phrases still match the store, so the renamed file is the one being read');
   assert.deepEqual(fs.readdirSync(path.join(freshWs, 'templates', 'global')), ['order-status-update', 'password-reset']);
+  for (const email of ['order-status-update', 'password-reset']) assert.deepEqual(fs.readdirSync(freshTpl(email)).sort(), ['body.html', 'phrases.json', 'subject.hbs']);
   assert.ok(fs.existsSync(path.join(freshWs, 'fixtures', 'order-status-update', 'default.json')));
   assert.doesNotMatch(await runIn(fresh, 'status'), /Renamed/);
   // every email that reads data of its own ships with sample data, filed under a type ID the tool knows
