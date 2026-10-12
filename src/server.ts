@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
-import { PACKAGE_ROOT } from './config.js';
+import { PACKAGE_ROOT, TOOL } from './config.js';
 import { listLocalTemplates, readLocalTemplate } from './store.js';
 import { lintTemplate, summariseClients } from './lint.js';
 import { adminName, folderName } from './names.js';
@@ -117,7 +117,7 @@ export function startServer(config: Config): Promise<PreviewServer> {
     server.once('error', (err: NodeJS.ErrnoException) => {
       if (err.code !== 'EADDRINUSE') return reject(err);
       reject(new Error(
-        `Port ${config.port} is already in use, most likely by a preview you started earlier. Stop that one first (Ctrl+C in its terminal), or run this one on another port:\n\n  email-builder start --port ${config.port + 1}`,
+        `Port ${config.port} is already in use, most likely by a preview you started earlier. Stop that one first (Ctrl+C in its terminal), or run this one on another port:\n\n  ${TOOL} start --port ${config.port + 1}`,
       ));
     });
     // Bound to localhost only: this is a development tool, not something to expose on a network.

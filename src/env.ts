@@ -1,5 +1,5 @@
 import {
-  DEFAULT_ENV, assertEnvName, envFilePath, existingWorkspace, listEnvNames, parseEnvFile,
+  DEFAULT_ENV, TOOL, assertEnvName, envFilePath, existingWorkspace, listEnvNames, parseEnvFile,
   resolveWorkspace, selectedEnvName, setActiveEnv,
 } from './config.js';
 import { success, warning } from './color.js';
@@ -14,23 +14,23 @@ function describe(root: string, name: string): string {
 
 function list(root: string, flags: Flags): void {
   const names = listEnvNames(root);
-  if (!names.length) return console.log(warning('No environments yet. Run "email-builder init" to set up the first one.'));
+  if (!names.length) return console.log(warning(`No environments yet. Run "${TOOL} init" to set up the first one.`));
   const active = selectedEnvName(root, flags);
   const width = Math.max(...names.map((n) => n.length));
   for (const name of names) {
     console.log(`${name === active ? '*' : ' '} ${name.padEnd(width)}  ${describe(root, name)}`);
   }
-  if (!active) console.log(`\n${warning('None selected.')} Choose one with: email-builder env use ${names.find((n) => n !== DEFAULT_ENV) ?? names[0]}`);
+  if (!active) console.log(`\n${warning('None selected.')} Choose one with: ${TOOL} env use ${names.find((n) => n !== DEFAULT_ENV) ?? names[0]}`);
   else if (!names.includes(active)) console.log(`\n${warning(`The active environment "${active}" has no saved credentials.`)}`);
 }
 
 function use(root: string, name: string | undefined): void {
-  if (!name) throw new Error('Name the environment to switch to, for example: email-builder env use staging');
+  if (!name) throw new Error(`Name the environment to switch to, for example: ${TOOL} env use staging`);
   assertEnvName(name);
   const names = listEnvNames(root);
   if (!names.includes(name)) {
     throw new Error(
-      `No environment called "${name}".${names.length ? ` You have: ${names.join(', ')}.` : ''}\nCreate it with: email-builder env add ${name}`,
+      `No environment called "${name}".${names.length ? ` You have: ${names.join(', ')}.` : ''}\nCreate it with: ${TOOL} env add ${name}`,
     );
   }
   setActiveEnv(root, name);
@@ -38,9 +38,9 @@ function use(root: string, name: string | undefined): void {
 }
 
 async function add(flags: Flags, name: string | undefined): Promise<void> {
-  if (!name) throw new Error('Name the environment to add, for example: email-builder env add staging');
+  if (!name) throw new Error(`Name the environment to add, for example: ${TOOL} env add staging`);
   if (!(await saveEnvironment(flags, name))) return;
-  if (name !== DEFAULT_ENV) console.log(`Switch to it with: email-builder env use ${name}`);
+  if (name !== DEFAULT_ENV) console.log(`Switch to it with: ${TOOL} env use ${name}`);
 }
 
 export async function env(flags: Flags, args: string[]): Promise<void> {

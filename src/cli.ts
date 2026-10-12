@@ -5,7 +5,7 @@ import readline from 'node:readline/promises';
 import { listRemoteTemplates, putRemoteTemplate } from './api.js';
 import { failure, success, warning } from './color.js';
 import {
-  BODY_LIMIT, DEFAULT_ENV, PACKAGE_ROOT, WORKSPACE_DIR, display, envFilePath, listEnvNames, loadConfig, resolveWorkspace, selectedEnvName,
+  BODY_LIMIT, DEFAULT_ENV, PACKAGE_ROOT, TOOL, WORKSPACE_DIR, display, envFilePath, listEnvNames, loadConfig, resolveWorkspace, selectedEnvName,
 } from './config.js';
 import { assertFixtureName, buildSkuFixture, buildStoreFixture, ensureDefaultFixtures } from './fixtures.js';
 import { env } from './env.js';
@@ -18,7 +18,7 @@ import { SETTINGS_FILE, ensureSettings, readSkus, settingsPath, writeLintIgnore 
 import { diffTemplate, listLocalTemplates, readLocalTemplate, templateDir, toApiPayload, writeLocalTemplate } from './store.js';
 import type { Config, Flags, LocalTemplate, RemoteTemplate, TemplatePart } from './types.js';
 
-const HELP = `Usage: email-builder <command>
+const HELP = `Usage: ${TOOL} <command>
 
 First time
   setup <environment...>   Save store credentials and download the templates
@@ -145,7 +145,7 @@ async function create(config: Config, flags: Flags, args: string[]): Promise<voi
   if (fixtures.length) console.log(`\nCreated ${fixtures.length} starter fixture file(s) in ${display(config.fixturesDir)}.`);
   if (starterSettings) console.log(`Created ${display(settingsPath(config))} with a starter "skus" list for the preview.`);
   const first = wanted[0];
-  if (first && !flags.chained) console.log(`\nNext: email-builder start ${wanted.length === 1 ? folderName(first.type_id) : ''}`.trimEnd());
+  if (first && !flags.chained) console.log(`\nNext: ${TOOL} start ${wanted.length === 1 ? folderName(first.type_id) : ''}`.trimEnd());
 }
 
 interface Comparison {
@@ -191,7 +191,7 @@ async function publish(config: Config, flags: Flags, args: string[]): Promise<vo
   for (const r of ready) console.log(`  publish  ${folderName(r.typeId)} (${r.changed.join(', ')})`);
   if (blocked.length) throw new Error('Fix the blocked templates first. Nothing was published.');
   const compat = ready.reduce((total, r) => total + lintTemplate(config, r.typeId).length, 0);
-  if (compat) console.log(`\n${warning(`${compat} feature(s) in these templates are not supported by some email clients.`)} See them with: email-builder lint`);
+  if (compat) console.log(`\n${warning(`${compat} feature(s) in these templates are not supported by some email clients.`)} See them with: ${TOOL} lint`);
   if (!ready.length) return console.log(success(`Nothing to publish. These templates already match ${where(config)}.`));
   if (flags['dry-run']) return console.log('\nDry run. Nothing was published.');
 
@@ -231,7 +231,7 @@ function lint(config: Config, flags: Flags, args: string[]): number {
   const unknown = typeIds.filter((id) => !local.includes(id));
   if (unknown.length) throw new Error(`No local template called ${unknown.map(folderName).join(', ')}.`);
   if (!typeIds.length) {
-    console.log(warning('No templates to check yet. Run "email-builder create --all" first.'));
+    console.log(warning(`No templates to check yet. Run "${TOOL} create --all" first.`));
     return 0;
   }
 
@@ -265,12 +265,12 @@ async function fixture(config: Config, flags: Flags, args: string[]): Promise<vo
   if (kind === 'sku') {
     // SKUs come only from the team's settings file, so everyone previews the same products.
     if (typed.length) {
-      throw new Error(`SKUs are not set on the command line. Put them in the "skus" list in ${display(settingsPath(config))} and run "email-builder fixture sku".`);
+      throw new Error(`SKUs are not set on the command line. Put them in the "skus" list in ${display(settingsPath(config))} and run "${TOOL} fixture sku".`);
     }
     const skus = readSkus(config);
     if (!skus.length) {
       throw new Error(
-        `No SKUs to look up. Add a list to ${display(settingsPath(config))}:\n\n  { "skus": ["TOTE-NAT", "MUG-BLU"] }\n\nthen run "email-builder fixture sku" again.`,
+        `No SKUs to look up. Add a list to ${display(settingsPath(config))}:\n\n  { "skus": ["TOTE-NAT", "MUG-BLU"] }\n\nthen run "${TOOL} fixture sku" again.`,
       );
     }
     const fixtureName = typeof flags.name === 'string' && flags.name ? flags.name : undefined;
@@ -294,7 +294,7 @@ async function fixture(config: Config, flags: Flags, args: string[]): Promise<vo
     console.log(`  address  ${store.address.replace(/\s*\r?\n\s*/g, ', ')}`);
     return console.log(`\n${success(`Wrote ${display(file)}`)}\nEvery preview now shows the ${config.envName} environment's store. The customer is still sample data.`);
   }
-  throw new Error('The fixture commands are "email-builder fixture sku" and "email-builder fixture store".');
+  throw new Error(`The fixture commands are "${TOOL} fixture sku" and "${TOOL} fixture store".`);
 }
 
 /**
@@ -313,7 +313,7 @@ async function setup(flags: Flags, args: string[]): Promise<void> {
   console.log(`Step 1 of 4: credentials for ${names.join(', ')}`);
   for (const each of names) {
     if (listEnvNames(root).includes(each) && !flags['store-hash'] && !flags.token) {
-      console.log(`${each}: already saved. Rerun "email-builder env add ${each} --force" to replace it.`);
+      console.log(`${each}: already saved. Rerun "${TOOL} env add ${each} --force" to replace it.`);
       continue;
     }
     const saved = await saveEnvironment(flags, each);
@@ -352,18 +352,18 @@ async function setup(flags: Flags, args: string[]): Promise<void> {
   }
 
   const active = selectedEnvName(root);
-  if (active) return console.log(`\n${success(`Setup complete. ${active} is the selected environment.`)} Next: email-builder start`);
-  console.log(`\n${success('Setup complete.')} ${warning('Nothing is selected yet, so choose an environment before you start:')}\n\n  email-builder env use ${name}\n  email-builder start`);
+  if (active) return console.log(`\n${success(`Setup complete. ${active} is the selected environment.`)} Next: ${TOOL} start`);
+  console.log(`\n${success('Setup complete.')} ${warning('Nothing is selected yet, so choose an environment before you start:')}\n\n  ${TOOL} env use ${name}\n  ${TOOL} start`);
 }
 
 async function start(config: Config, args: string[]): Promise<void> {
   const local = listLocalTemplates(config);
   const typeId = args[0] ? toTypeId(args[0]) : undefined;
   if (typeId && !local.includes(typeId)) {
-    throw new Error(`No local template called ${folderName(typeId)}. Download it first: email-builder create ${folderName(typeId)}`);
+    throw new Error(`No local template called ${folderName(typeId)}. Download it first: ${TOOL} create ${folderName(typeId)}`);
   }
   if (!Number.isInteger(config.port) || config.port < 0 || config.port > 65535) {
-    throw new Error('The preview port must be a whole number from 1 to 65535. Set it with --port, for example: email-builder start --port 4322');
+    throw new Error(`The preview port must be a whole number from 1 to 65535. Set it with --port, for example: ${TOOL} start --port 4322`);
   }
   // Emails that gained sample data in a newer version of the tool get it here.
   const sampled = ensureDefaultFixtures(config, local);
@@ -371,7 +371,7 @@ async function start(config: Config, args: string[]): Promise<void> {
   const { url } = await startServer(config);
   console.log(success(`Starting email-builder at ${url}${typeId ? `/#type=${typeId}` : ''}`));
   console.log(`Environment ${config.envName}. Previewing ${local.length} template(s) from ${display(config.templatesDir)}. Press Ctrl+C to stop.`);
-  if (!local.length) console.log(warning('No templates yet. Run "email-builder create --all" in another terminal.'));
+  if (!local.length) console.log(warning(`No templates yet. Run "${TOOL} create --all" in another terminal.`));
 }
 
 function version(): string {
@@ -386,7 +386,7 @@ async function main(): Promise<void> {
   if (!command || command === 'help' || command === '-h' || command === '--help' || flags.help) return console.log(HELP);
   if (flags.dir) throw new Error(`--dir is not an option. Files always live in ./${WORKSPACE_DIR}.`);
   if (flags.channel && !['init', 'setup', 'env'].includes(command)) {
-    throw new Error('--channel is not an option here. A channel belongs to an environment: set it when you save one with "email-builder env add <name>", then select that environment.');
+    throw new Error(`--channel is not an option here. A channel belongs to an environment: set it when you save one with "${TOOL} env add <name>", then select that environment.`);
   }
   refuseUnknownOptions(command, flags);
   if (command === 'init') return init(flags);

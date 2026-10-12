@@ -612,6 +612,23 @@ try {
   assert.match(JSON.parse(fs.readFileSync(placeholder, 'utf8')).reset_password.link, /sample-token/);
   assert.equal(JSON.parse(fs.readFileSync(path.join(freshWs, 'fixtures', 'order-status-update', 'default.json'), 'utf8')).order.id, 7);
   assert.deepEqual(ensureDefaultFixtures(freshConfig, ['account_reset_password_email', 'createaccount_email']), [], 'an email with no sample data keeps its empty file');
+  // hints show the command as it has to be typed. Installed in the project, as a dev dependency is, that means npx in front
+  const repo = path.join(path.dirname(cli), '..');
+  const consumer = fs.mkdtempSync(path.join(os.tmpdir(), 'email-builder-consumer-'));
+  const installed = path.join(consumer, 'node_modules', 'bc-email-builder');
+  try {
+    fs.cpSync(path.join(repo, 'dist'), path.join(installed, 'dist'), { recursive: true });
+    fs.copyFileSync(path.join(repo, 'package.json'), path.join(installed, 'package.json'));
+    fs.symlinkSync(path.join(repo, 'node_modules'), path.join(installed, 'node_modules'), 'dir');
+    const from = (dir, ...args) => exec('node', [path.join(installed, 'dist', 'cli.js'), ...args], { cwd: dir, env }).catch((e) => e);
+    assert.match((await from(consumer, '--help')).stdout, /^Usage: npx email-builder <command>/);
+    assert.match((await from(consumer, 'status')).stderr, /Run "npx email-builder init" to set them up/);
+    fs.mkdirSync(path.join(consumer, 'theme-emails'));
+    assert.match((await from(path.join(consumer, 'theme-emails'), 'env')).stdout, /Run "npx email-builder init"/, 'inside theme-emails too');
+    assert.match((await from(os.tmpdir(), '--help')).stdout, /^Usage: email-builder <command>/, 'from outside that project, as a global install runs, it goes by its own name');
+  } finally {
+    fs.rmSync(consumer, { recursive: true, force: true });
+  }
   // bad credentials stop it before anything is downloaded
   const bad = fs.mkdtempSync(path.join(os.tmpdir(), 'email-builder-bad-'));
   try {

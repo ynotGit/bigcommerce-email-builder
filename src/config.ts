@@ -9,6 +9,24 @@ export const BODY_LIMIT = 65536;
 /** Package root, where assets/ and defaults/ live (one level above dist/). */
 export const PACKAGE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+/**
+ * How to type the command from here, for the hints this tool prints. Installed
+ * in the project you are standing in, as a dev dependency is, it is not on the
+ * PATH and needs npx in front. Installed globally or linked, it runs by name.
+ */
+function typedAs(): string {
+  try {
+    const at = PACKAGE_ROOT.lastIndexOf(`${path.sep}node_modules${path.sep}`);
+    if (at === -1) return 'email-builder';
+    const project = PACKAGE_ROOT.slice(0, at);
+    const here = fs.realpathSync(process.cwd());
+    return here === project || here.startsWith(project + path.sep) ? 'npx email-builder' : 'email-builder';
+  } catch {
+    return 'email-builder';
+  }
+}
+export const TOOL = typedAs();
+
 export function parseEnvFile(file: string): Record<string, string> | null {
   if (!fs.existsSync(file)) return null;
   const vars: Record<string, string> = {};
@@ -120,7 +138,7 @@ export function resolveEnvName(root: string, flags: Flags = {}): string {
   if (selected) return selected;
   const names = listEnvNames(root);
   throw new Error(
-    `No environment selected. Choose one first:\n\n  email-builder env use ${names.find((n) => n !== DEFAULT_ENV) ?? '<name>'}\n\nYou have: ${names.join(', ')}.`,
+    `No environment selected. Choose one first:\n\n  ${TOOL} env use ${names.find((n) => n !== DEFAULT_ENV) ?? '<name>'}\n\nYou have: ${names.join(', ')}.`,
   );
 }
 
@@ -131,7 +149,7 @@ export function loadConfig(flags: Flags = {}): Config {
   if (!vars && envName !== DEFAULT_ENV) {
     const known = listEnvNames(root);
     throw new Error(
-      `No environment called "${envName}".${known.length ? ` You have: ${known.join(', ')}.` : ''}\nCreate it with: email-builder env add ${envName}`,
+      `No environment called "${envName}".${known.length ? ` You have: ${known.join(', ')}.` : ''}\nCreate it with: ${TOOL} env add ${envName}`,
     );
   }
   // With no file for the default environment, fall back to a project-level .env
@@ -165,6 +183,6 @@ export function requireCredentials(config: Config): asserts config is Config & {
   if (!config.storeHash) missing.push('BC_STORE_HASH');
   if (!config.token) missing.push('BC_ACCESS_TOKEN');
   if (missing.length) {
-    throw new Error(`Missing ${missing.join(' and ')} for the ${config.envName} environment. Run "email-builder init" to set them up.`);
+    throw new Error(`Missing ${missing.join(' and ')} for the ${config.envName} environment. Run "${TOOL} init" to set them up.`);
   }
 }

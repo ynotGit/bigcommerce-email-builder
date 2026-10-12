@@ -4,7 +4,7 @@ import readline from 'node:readline/promises';
 import { Writable } from 'node:stream';
 import { listRemoteTemplates } from './api.js';
 import { failure, success } from './color.js';
-import { DEFAULT_ENV, assertEnvName, display, envFilePath, loadConfig, resolveWorkspace } from './config.js';
+import { DEFAULT_ENV, TOOL, assertEnvName, display, envFilePath, loadConfig, resolveWorkspace } from './config.js';
 import type { Flags } from './types.js';
 
 // Credentials for every environment and the per-developer "active" pointer stay out of git.
@@ -132,5 +132,5 @@ export async function saveEnvironment(flags: Flags, name: string): Promise<boole
 export async function init(flags: Flags): Promise<void> {
   const name = flag(flags.env) ?? DEFAULT_ENV;
   if (!(await saveEnvironment(flags, name))) return;
-  if (!process.exitCode) console.log('Next: email-builder create --all');
+  if (!process.exitCode) console.log(`Next: ${TOOL} create --all`);
 }
