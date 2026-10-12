@@ -256,7 +256,9 @@ caniemail.com has no data for some feature and client pairs (for example
   reports how many characters it received instead. A token passed with
   `--token` stays in your shell's history, so keep that for scripts.
 - The tool never requests orders or customers.
-- The preview only listens on localhost.
+- The preview only listens on localhost, only answers requests addressed to
+  localhost, and only reads templates and preview data that are in the
+  project.
 
 ## Working on the tool
 

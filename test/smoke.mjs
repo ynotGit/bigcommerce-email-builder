@@ -524,6 +524,21 @@ try {
   const meta = await (await fetch(`${server.url}/api/render?type=account_reset_password_email`)).json();
   assert.deepEqual(meta.compat, [{ line: 1, title: 'display:grid', clients: 'outlook (windows)' }]);
   assert.match((await (await fetch(`${server.url}/`)).text()), /Transactional emails/);
+  // the preview reads only what is in the project: a template or preview data named in the URL cannot point elsewhere
+  fs.writeFileSync(path.join(cwd, 'outside.json'), JSON.stringify({ order: { customer_name: 'READ FROM OUTSIDE' } }));
+  const stray = await (await fetch(`${server.url}/frame?type=combined_order_status_email&fixture=../../../outside`)).text();
+  assert.match(stray, /No preview data called &quot;\.\.\/\.\.\/\.\.\/outside&quot; for order-status-update\./);
+  assert.doesNotMatch(stray, /READ FROM OUTSIDE/);
+  fs.rmSync(path.join(cwd, 'outside.json'));
+  const strayType = await (await fetch(`${server.url}/api/render?type=${encodeURIComponent('../../fixtures')}`)).json();
+  assert.equal(strayType.error, 'No template called ../../fixtures here.');
+  assert.deepEqual(strayType.compat, []);
+  // and it answers only requests addressed to localhost, which is what stops a web page elsewhere reading it
+  const hostile = await new Promise((resolve, reject) => {
+    http.get({ host: '127.0.0.1', port: new URL(server.url).port, path: '/api/templates', headers: { Host: 'evil.example' } }, (res) => resolve(res.statusCode)).on('error', reject);
+  });
+  assert.equal(hostile, 403);
+  assert.equal((await fetch(`${server.url.replace('localhost', '127.0.0.1')}/api/templates`)).status, 200);
   // live reload fires on save
   const sse = await fetch(`${server.url}/events`);
   const reader = sse.body.getReader();

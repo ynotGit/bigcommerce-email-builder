@@ -3,7 +3,7 @@ import path from 'node:path';
 import Handlebars from 'handlebars';
 import { BODY_LIMIT, display } from './config.js';
 import { folderName, PHRASES_FILE } from './names.js';
-import { readLocalTemplate, templateDir } from './store.js';
+import { listLocalTemplates, readLocalTemplate, templateDir } from './store.js';
 import type { Config, LocalTemplate, RenderRequest, RenderResult, TranslationMap } from './types.js';
 
 type Json = Record<string, unknown>;
@@ -196,6 +196,12 @@ export async function renderEmail(config: Config, request: RenderRequest): Promi
 
   try {
     if (!typeId) throw new Error('No template selected.');
+    // Both names become part of a file path, and the preview takes them from a URL,
+    // so only a template and preview data that are really in the project are read.
+    if (!listLocalTemplates(config).includes(typeId)) throw new Error(`No template called ${typeId} here.`);
+    if (fixture !== 'default' && !listFixtures(config, typeId).includes(fixture)) {
+      throw new Error(`No preview data called "${fixture}" for ${folderName(typeId)}.`);
+    }
     const template = readLocalTemplate(config, typeId);
     if (!template) throw new Error(`No template at ${display(path.join(templateDir(config, typeId), 'body.html'))}`);
     result.length = template.body.length;

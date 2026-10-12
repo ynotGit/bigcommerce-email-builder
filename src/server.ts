@@ -43,6 +43,12 @@ export function startServer(config: Config): Promise<PreviewServer> {
   const run = randomUUID();
 
   const server = http.createServer(async (req, res) => {
+    // Only a browser on this machine, asking for localhost, is answered. A page elsewhere can point a
+    // name of its own at 127.0.0.1 to get its requests here, but they then arrive under that name.
+    if (!['localhost', '127.0.0.1'].includes((req.headers.host ?? '').replace(/:\d+$/, ''))) {
+      res.writeHead(403, { 'Content-Type': 'text/plain' });
+      return res.end('This preview only answers requests for localhost.');
+    }
     const url = new URL(req.url ?? '/', 'http://localhost');
     const params: RenderRequest = {
       typeId: url.searchParams.get('type'),
@@ -62,7 +68,7 @@ export function startServer(config: Config): Promise<PreviewServer> {
         let compat: { line: number; title: string; clients: string }[] = [];
         let compatError: string | null = null;
         try {
-          compat = params.typeId
+          compat = params.typeId && listLocalTemplates(config).includes(params.typeId)
             ? lintTemplate(config, params.typeId).map((i) => ({ line: i.line, title: i.title, clients: summariseClients(i.clients) }))
             : [];
         } catch (err) {
