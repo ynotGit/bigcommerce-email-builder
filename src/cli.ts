@@ -31,6 +31,7 @@ Every day
 
 Extras
   status                   List templates that differ from the store
+  create --all             Download the store's templates again; emails you have edited are kept
   lint                     Flag HTML and CSS that email clients do not support
   lint --accept            Stop flagging what the templates already use, so new problems stand out
   fixture sku              Show the products from your "skus" list in every email's preview

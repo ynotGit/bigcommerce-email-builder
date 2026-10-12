@@ -127,6 +127,9 @@ name too.
 | Return Status Change | `return-status-change` | `return_statuschange_email` |
 | Sign-in Link Request | `sign-in-link-request` | `passwordless_login_email` |
 
+The abandoned cart email was not in the admin list these names were taken
+from, so "Abandoned Cart" is the tool's own name for it.
+
 An email BigCommerce adds later keeps its type ID as its folder name until
 this list catches up. A project whose folders are still named by type ID is
 renamed in place the next time you run a command.
@@ -267,10 +270,25 @@ caniemail.com has no data for some feature and client pairs (for example
     npm run typecheck
     npm test            # build, then run the whole flow against a mock API
 
-Source is TypeScript in `src/`: `cli.ts` (commands), `config.ts`
-(environments), `render.ts` (preview), `lint.ts` (email client check),
-`fixtures.ts` (preview data), `types.ts` (API and email object shapes). The
-preview page is `assets/ui.html`.
+Source is TypeScript in `src/`. The preview page is `assets/ui.html`.
 
-The test covers every command against a mock of the BigCommerce API. The tool
-has not yet been run against a live store.
+| File | What it holds |
+| --- | --- |
+| `cli.ts` | The commands and their options |
+| `config.ts` | Environments, and where the workspace is |
+| `init.ts`, `env.ts` | Saving credentials; the `env` command |
+| `api.ts` | Requests to the BigCommerce API |
+| `store.ts` | Templates on disk, and how they compare with the store's |
+| `names.ts` | Each email's admin name, folder and type ID |
+| `render.ts` | The preview render and BigCommerce's helpers |
+| `server.ts` | The preview server |
+| `fixtures.ts` | Preview data: samples, `fixture sku`, `fixture store` |
+| `lint.ts` | The email client check |
+| `settings.ts` | Reading and writing `email-builder.json` |
+| `color.ts`, `version.ts` | Terminal colours; which build this is |
+| `types.ts` | The shapes of the API's and the emails' data |
+
+The test covers every command against a mock of the BigCommerce API. Against
+a live store the tool has been used for a store's global templates, from
+`setup` through to `publish`. Templates for a single channel have only been
+run against the mock.
