@@ -9,6 +9,12 @@ export const BODY_LIMIT = 65536;
 /** Package root, where assets/ and defaults/ live (one level above dist/). */
 export const PACKAGE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+/** The folder whose node_modules this tool is installed in, or null for a checkout of the tool itself. */
+export function installProject(): string | null {
+  const at = PACKAGE_ROOT.lastIndexOf(`${path.sep}node_modules${path.sep}`);
+  return at === -1 ? null : PACKAGE_ROOT.slice(0, at);
+}
+
 /**
  * How to type the command from here, for the hints this tool prints. Installed
  * in the project you are standing in, as a dev dependency is, it is not on the
@@ -16,9 +22,8 @@ export const PACKAGE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url
  */
 function typedAs(): string {
   try {
-    const at = PACKAGE_ROOT.lastIndexOf(`${path.sep}node_modules${path.sep}`);
-    if (at === -1) return 'email-builder';
-    const project = PACKAGE_ROOT.slice(0, at);
+    const project = installProject();
+    if (!project) return 'email-builder';
     const here = fs.realpathSync(process.cwd());
     return here === project || here.startsWith(project + path.sep) ? 'npx email-builder' : 'email-builder';
   } catch {

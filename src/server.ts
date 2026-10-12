@@ -9,6 +9,7 @@ import { adminName, folderName } from './names.js';
 import { listFixtures, renderEmail } from './render.js';
 import { settingsPath } from './settings.js';
 import type { Config, RenderRequest } from './types.js';
+import { version } from './version.js';
 
 const uiFile = path.join(PACKAGE_ROOT, 'assets', 'ui.html');
 const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
@@ -54,7 +55,7 @@ export function startServer(config: Config): Promise<PreviewServer> {
         return res.end(fs.readFileSync(uiFile));
       }
       if (url.pathname === '/api/templates') {
-        return json(res, { scope: config.scope, templates: templateSummary(config) });
+        return json(res, { scope: config.scope, version: version(), templates: templateSummary(config) });
       }
       if (url.pathname === '/api/render') {
         const { html: _html, ...meta } = await renderEmail(config, params);

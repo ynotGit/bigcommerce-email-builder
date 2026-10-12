@@ -5,7 +5,7 @@ import readline from 'node:readline/promises';
 import { listRemoteTemplates, putRemoteTemplate } from './api.js';
 import { failure, success, warning } from './color.js';
 import {
-  BODY_LIMIT, DEFAULT_ENV, PACKAGE_ROOT, TOOL, WORKSPACE_DIR, display, envFilePath, listEnvNames, loadConfig, resolveWorkspace, selectedEnvName,
+  BODY_LIMIT, DEFAULT_ENV, TOOL, WORKSPACE_DIR, display, envFilePath, listEnvNames, loadConfig, resolveWorkspace, selectedEnvName,
 } from './config.js';
 import { assertFixtureName, buildSkuFixture, buildStoreFixture, ensureDefaultFixtures } from './fixtures.js';
 import { env } from './env.js';
@@ -16,6 +16,7 @@ import { checkSyntax } from './render.js';
 import { startServer } from './server.js';
 import { SETTINGS_FILE, ensureSettings, readSkus, settingsPath, writeLintIgnore } from './settings.js';
 import { diffTemplate, listLocalTemplates, readLocalTemplate, templateDir, toApiPayload, writeLocalTemplate } from './store.js';
+import { version } from './version.js';
 import type { Config, Flags, LocalTemplate, RemoteTemplate, TemplatePart } from './types.js';
 
 const HELP = `Usage: ${TOOL} <command>
@@ -369,14 +370,9 @@ async function start(config: Config, args: string[]): Promise<void> {
   const sampled = ensureDefaultFixtures(config, local);
   if (sampled.length) console.log(`Added sample preview data for ${sampled.length} email(s) in ${display(config.fixturesDir)}.\n`);
   const { url } = await startServer(config);
-  console.log(success(`Starting email-builder at ${url}${typeId ? `/#type=${typeId}` : ''}`));
+  console.log(success(`Starting email-builder ${version()} at ${url}${typeId ? `/#type=${typeId}` : ''}`));
   console.log(`Environment ${config.envName}. Previewing ${local.length} template(s) from ${display(config.templatesDir)}. Press Ctrl+C to stop.`);
   if (!local.length) console.log(warning(`No templates yet. Run "${TOOL} create --all" in another terminal.`));
-}
-
-function version(): string {
-  const pkg = JSON.parse(fs.readFileSync(path.join(PACKAGE_ROOT, 'package.json'), 'utf8')) as { version: string };
-  return pkg.version;
 }
 
 async function main(): Promise<void> {

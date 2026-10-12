@@ -516,6 +516,7 @@ try {
   const server = await startServer({ ...config, port: 0 });
   const list = await (await fetch(`${server.url}/api/templates`)).json();
   assert.equal(list.templates.length, 2);
+  assert.match(list.version, /^\d+\.\d+\.\d+/, 'the preview page shows which build it came from');
   assert.deepEqual(list.templates.find((t) => t.typeId === 'combined_order_status_email').fixtures, ['default', 'products']);
   assert.deepEqual(list.templates.map((t) => [t.name, t.folder]), [['Order Status Update', 'order-status-update'], ['Password Reset', 'password-reset']]);
   const frame = await (await fetch(`${server.url}/frame?type=combined_order_status_email&fixture=products`)).text();
@@ -622,6 +623,16 @@ try {
     fs.symlinkSync(path.join(repo, 'node_modules'), path.join(installed, 'node_modules'), 'dir');
     const from = (dir, ...args) => exec('node', [path.join(installed, 'dist', 'cli.js'), ...args], { cwd: dir, env }).catch((e) => e);
     assert.match((await from(consumer, '--help')).stdout, /^Usage: npx email-builder <command>/);
+    // installs come from the main branch, so --version adds the commit npm fetched, which is what tells two builds apart
+    const { version: number } = JSON.parse(fs.readFileSync(path.join(repo, 'package.json'), 'utf8'));
+    assert.equal((await from(consumer, '--version')).stdout, `${number}\n`, 'with nothing recorded, the version alone');
+    const fetched = { packages: { 'node_modules/bc-email-builder': { resolved: 'git+ssh://git@github.com/ynotGit/bigcommerce-email-builder.git#0123456789abcdef0123456789abcdef01234567' } } };
+    fs.writeFileSync(path.join(consumer, 'package-lock.json'), JSON.stringify(fetched));
+    assert.equal((await from(consumer, '--version')).stdout, `${number} (0123456)\n`);
+    // what is in node_modules right now wins over what the lockfile says should be there
+    fetched.packages['node_modules/bc-email-builder'].resolved = fetched.packages['node_modules/bc-email-builder'].resolved.replace('#0123456', '#fedcba9');
+    fs.writeFileSync(path.join(consumer, 'node_modules', '.package-lock.json'), JSON.stringify(fetched));
+    assert.equal((await from(consumer, '--version')).stdout, `${number} (fedcba9)\n`);
     assert.match((await from(consumer, 'status')).stderr, /Run "npx email-builder init" to set them up/);
     fs.mkdirSync(path.join(consumer, 'theme-emails'));
     assert.match((await from(path.join(consumer, 'theme-emails'), 'env')).stdout, /Run "npx email-builder init"/, 'inside theme-emails too');

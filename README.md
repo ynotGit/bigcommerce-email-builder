@@ -12,6 +12,8 @@ Needs Node 20 or newer. From your project root (the folder that holds
 
 This adds the tool to your project's dev dependencies, so its commands run
 through `npx`. To update to the latest version, run the same command again.
+`npx email-builder --version` shows which build you have, for example
+`0.12.0 (5392e1c)`: the version, then the commit it was installed from.
 
 ## API account
 

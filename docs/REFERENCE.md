@@ -38,6 +38,12 @@ ID (`combined_order_status_email`) work too. See [Email names](#email-names).
 Add `--env <name>` to any command to use that environment for that command
 only.
 
+`--version` prints the version and the commit the build came from, such as
+`0.12.0 (5392e1c)`. Installs come from the main branch, so the commit is what
+tells two builds apart. `start` prints the same and the preview shows it under
+the list of emails, which is how to check that a running preview is the build
+you just installed.
+
 Commands work from the project root or from inside `theme-emails/`. The folder
 name is fixed. Run from a folder further down the project, a command says
 where the project root is and does nothing else.

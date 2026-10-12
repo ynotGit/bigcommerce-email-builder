@@ -1,6 +1,6 @@
 {
   "name": "bc-email-builder",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Edit BigCommerce transactional email templates locally with live preview, then publish them through the Email Templates API.",
   "type": "module",
   "bin": {
