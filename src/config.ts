@@ -39,6 +39,32 @@ export function resolveWorkspace(): string {
   return path.basename(cwd) === WORKSPACE_DIR ? cwd : path.join(cwd, WORKSPACE_DIR);
 }
 
+/** A folder above this one, in the same project, that holds the workspace. Looking stops at the project's top folder. */
+function projectRootAbove(cwd: string): string | null {
+  const isTop = (dir: string): boolean => ['package.json', '.git'].some((mark) => fs.existsSync(path.join(dir, mark)));
+  for (let dir = cwd; !isTop(dir);) {
+    const parent = path.dirname(dir);
+    if (parent === dir) return null; // the top of the disk
+    dir = parent;
+    if (fs.existsSync(path.join(dir, WORKSPACE_DIR))) return dir;
+  }
+  return null;
+}
+
+/**
+ * The workspace, for a command that needs one to be there already. Run from a
+ * folder further down the project, such a command would find nothing beside it
+ * and go on to blame the credentials, so this says where the workspace is instead.
+ */
+export function existingWorkspace(): string {
+  const root = resolveWorkspace();
+  if (fs.existsSync(root)) return root;
+  const above = projectRootAbove(process.cwd());
+  if (!above) return root; // a new project: the command reports what it is missing
+  const up = path.relative(process.cwd(), above);
+  throw new Error(`No ${WORKSPACE_DIR} folder here; this project's is ${path.join(up, WORKSPACE_DIR)}. Run the command from the project root:\n\n  cd ${up}`);
+}
+
 /** A path as the user would type it from where they are standing. */
 export const display = (target: string): string => path.relative(process.cwd(), target) || '.';
 
@@ -99,7 +125,7 @@ export function resolveEnvName(root: string, flags: Flags = {}): string {
 }
 
 export function loadConfig(flags: Flags = {}): Config {
-  const root = resolveWorkspace();
+  const root = existingWorkspace();
   const envName = resolveEnvName(root, flags);
   let vars = parseEnvFile(envFilePath(root, envName));
   if (!vars && envName !== DEFAULT_ENV) {

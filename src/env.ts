@@ -1,5 +1,5 @@
 import {
-  DEFAULT_ENV, assertEnvName, envFilePath, listEnvNames, parseEnvFile,
+  DEFAULT_ENV, assertEnvName, envFilePath, existingWorkspace, listEnvNames, parseEnvFile,
   resolveWorkspace, selectedEnvName, setActiveEnv,
 } from './config.js';
 import { success, warning } from './color.js';
@@ -44,8 +44,9 @@ async function add(flags: Flags, name: string | undefined): Promise<void> {
 }
 
 export async function env(flags: Flags, args: string[]): Promise<void> {
-  const root = resolveWorkspace();
   const [action, name] = args;
+  // Only "add" may start a workspace; the others need the one that is there.
+  const root = action === 'add' ? resolveWorkspace() : existingWorkspace();
   switch (action) {
     case undefined:
     case 'list': return list(root, flags);

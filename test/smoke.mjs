@@ -149,6 +149,15 @@ try {
   assert.match((await exec('node', [cli, 'status'], { cwd: ws, env })).stdout, /Nothing to publish/);
   assert.match(await fails('status', '--dir', ws), /--dir is not an option\. Files always live in \.\/theme-emails/);
   assert.deepEqual(fs.readdirSync(cwd), ['theme-emails']);
+  // run from a folder further down the project, a command says where the emails are, where it used to blame the credentials
+  const deep = path.join(cwd, 'src', 'deep');
+  fs.mkdirSync(deep, { recursive: true });
+  for (const [dir, up, ...command] of [[deep, '../..', 'status'], [deep, '../..', 'env'], [tpl('password-reset'), '../../../..', 'lint']]) {
+    const lost = await exec('node', [cli, ...command], { cwd: dir, env }).catch((e) => e);
+    assert.equal(lost.code, 1, command.join(' '));
+    assert.ok(lost.stderr.includes(`No theme-emails folder here; this project's is ${up}/theme-emails. Run the command from the project root:\n\n  cd ${up}\n`), lost.stderr);
+  }
+  fs.rmSync(path.join(cwd, 'src'), { recursive: true });
 
   // local render
   const { loadConfig } = await import('../dist/config.js');

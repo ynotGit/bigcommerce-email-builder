@@ -39,7 +39,8 @@ Add `--env <name>` to any command to use that environment for that command
 only.
 
 Commands work from the project root or from inside `theme-emails/`. The folder
-name is fixed.
+name is fixed. Run from a folder further down the project, a command says
+where the project root is and does nothing else.
 
 In a terminal, results are coloured: green for what worked, orange for a
 warning, red for an error. Output sent to a file or another program is plain
