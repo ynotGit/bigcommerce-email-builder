@@ -40,7 +40,7 @@ function use(root: string, name: string | undefined): void {
 async function add(flags: Flags, name: string | undefined): Promise<void> {
   if (!name) throw new Error(`Name the environment to add, for example: ${TOOL} env add staging`);
   if (!(await saveEnvironment(flags, name))) return;
-  if (name !== DEFAULT_ENV) console.log(`Switch to it with: ${TOOL} env use ${name}`);
+  if (name !== DEFAULT_ENV && !process.exitCode) console.log(`Switch to it with: ${TOOL} env use ${name}`);
 }
 
 export async function env(flags: Flags, args: string[]): Promise<void> {

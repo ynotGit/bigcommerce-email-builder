@@ -223,6 +223,8 @@ export async function renderEmail(config: Config, request: RenderRequest): Promi
       Object.fromEntries(Object.entries(extra).filter(([key]) => !key.startsWith('@'))),
       extra[`@${folderName(typeId)}`],
     ].reduce(deepMerge, readJson(path.join(config.fixturesDir, '_global.json'), 'fixtures/_global.json')) as Json;
+    // misc.year is this year, as it is in a real email, unless the preview data sets one.
+    context.misc = { year: new Date().getFullYear(), ...(isObject(context.misc) ? context.misc : {}) };
     // The phrases on disk are what would be published, so they win over fixture data.
     context.translations = template.translations;
     const store = context.store as { language?: { code?: string } } | undefined;

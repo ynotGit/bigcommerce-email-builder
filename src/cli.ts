@@ -69,7 +69,8 @@ function parseArgs(argv: string[]): { flags: Flags; positional: string[] } {
     if (!arg.startsWith('-')) { positional.push(arg); continue; }
     // A short option this tool does not have, such as -n, is kept as it was typed and refused with the rest.
     if (!arg.startsWith('--')) { flags[arg] = true; continue; }
-    const [key = '', inline] = arg.slice(2).split('=');
+    // Only the first "=" separates the option from its value; a value may hold more of them.
+    const [, key = '', inline] = /^--([^=]*)(?:=(.*))?$/s.exec(arg) ?? [];
     if (VALUE_FLAGS.has(key)) {
       const value = inline ?? argv[++i];
       if (value === undefined) throw new Error(`--${key} needs a value`);
@@ -369,7 +370,7 @@ async function start(config: Config, args: string[]): Promise<void> {
   }
   // Emails that gained sample data in a newer version of the tool get it here.
   const sampled = ensureDefaultFixtures(config, local);
-  if (sampled.length) console.log(`Added sample preview data for ${sampled.length} email(s) in ${display(config.fixturesDir)}.\n`);
+  if (sampled.length) console.log(`Added ${sampled.length} file(s) of sample preview data in ${display(config.fixturesDir)}.\n`);
   const { url } = await startServer(config);
   console.log(success(`Starting email-builder ${version()} at ${url}${typeId ? `/#type=${typeId}` : ''}`));
   console.log(`Environment ${config.envName}. Previewing ${local.length} template(s) from ${display(config.templatesDir)}. Press Ctrl+C to stop.`);

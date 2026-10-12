@@ -86,59 +86,6 @@ export interface EmailInvoiceProduct {
   address_lines?: string[];
 }
 
-export interface EmailDownloadableProduct {
-  name: string;
-  options: string | null;
-  quantity: number;
-  link: string;
-  thumbnail: string;
-  attribute_lines: AttributeLine[];
-}
-
-export interface EmailTracking {
-  id: string;
-  shipping_method: string;
-  link: string;
-}
-
-export interface EmailOrder {
-  id: number;
-  new_status: string;
-  new_formatted_status: string;
-  total: Formatted<number>;
-  refund: Formatted<number>;
-  date_placed: Formatted<number>;
-  payment_method: string;
-  link: string;
-  customer_name: string;
-  products: EmailProduct[];
-  unshipped_products: EmailProduct[];
-  downloadable_products: EmailDownloadableProduct[];
-  ready_for_pickup_products: EmailProduct[];
-  picked_up_products: EmailProduct[];
-  pickup_methods: unknown[];
-  tracking: EmailTracking[];
-}
-
-export interface EmailStore {
-  name: string;
-  domain_name: string;
-  /** Templates build the logo and icon URLs from this, e.g. {{store.cdn_path}}/img/emails/cart.png */
-  cdn_path: string;
-  logo: { title: string; name: string; url: string };
-  ssl_path: string;
-  path_normal: string;
-  path: string;
-  address: string | null;
-  language: { code: string; direction: 'ltr' | 'rtl' };
-}
-
-export interface EmailCustomer {
-  first_name: string;
-  full_name: string;
-  email: string;
-}
-
 // ---- The slices of the Store and Catalog APIs the fixtures read ---------------
 // No order or customer endpoints: preview data never includes personal data.
 

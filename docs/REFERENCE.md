@@ -72,6 +72,8 @@ channel ID.
 - When an environment has a saved file, its store, token and channel come only
   from that file. Shell variables such as `BC_STORE_HASH` are used only when
   no file exists (useful in CI).
+- A request the store has not answered within 30 seconds is given up on. On a
+  slow connection, raise that with `BC_API_TIMEOUT_MS`, in milliseconds.
 - The channel ID is set when you save an environment (leave it blank for the
   store's global templates) and cannot be overridden per command. An
   environment with a channel ID uses `templates/channel-<id>/`, so two
@@ -193,6 +195,9 @@ Two commands add real, non-personal data:
   email.
   `_global.json` is shared by every environment, so it shows the store you
   last ran this against.
+
+`misc.year` is the current year, as it is in a real email, unless
+`_global.json` sets one.
 
 The preview never contacts the store. It reads these files, so rerun
 `fixture sku` when the list, prices or images change, and `fixture store`

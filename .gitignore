@@ -1,6 +1,5 @@
 node_modules/
 dist/
 .env
-# Store data pulled while trying the tool out in this folder
-templates/
-fixtures/
+# What the tool writes when it is tried out in this folder
+theme-emails/

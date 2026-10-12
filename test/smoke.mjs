@@ -39,7 +39,8 @@ const requests = []; // every API path the tool asks for
 const api = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   const [, store = '', p = ''] = /^\/stores\/(\w+)(\/.*)$/.exec(url.pathname) ?? [];
-  if (!['testhash', 'stagehash'].includes(store)) { res.writeHead(404); return res.end('{}'); }
+  if (store === 'slowhash') return undefined; // a store that takes the connection and never answers
+  if (!['testhash', 'stagehash'].includes(store)) { res.writeHead(404, { 'Content-Type': 'text/html' }); return res.end('<html><body><h1>404 Not Found</h1></body></html>'); }
   requests.push(p);
   const send = (data, status = 200) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(data)); };
   if (req.headers['x-auth-token'] !== 'tok') return send({ title: 'unauthorized' }, 401);
@@ -221,7 +222,8 @@ try {
     "{{#replace '%%DATE%%' store.name}}{{misc.year}}{{else}}{{store.name}}{{/replace}}",
   ].join('|'));
   assert.equal(r.error, null);
-  assert.equal(r.html, 'later|same|not a list|Ships 2026, 2026|Example Store');
+  const year = new Date().getFullYear(); // misc.year is the current year, as in a real email, unless the preview data sets one
+  assert.equal(r.html, `later|same|not a list|Ships ${year}, ${year}|Example Store`);
   assert.deepEqual(r.warnings, []);
   assert.match((await conditionals("{{#compare '2' '1' operator='gtnum'}}x{{/compare}}")).error, /compare helper does not know the operator "gtnum"/);
   assert.match((await conditionals('{{#compare 1}}x{{/compare}}')).error, /compare helper needs two values/);
@@ -238,6 +240,9 @@ try {
   r = await renderEmail(config, { typeId: 'account_reset_password_email', fixture: 'lists' });
   assert.equal(r.html, '[]');
   assert.match(r.warnings.join(' | '), /join helper was given something that is not a list/);
+  fs.writeFileSync(listsFile, JSON.stringify({ misc: { year: 1999 } }));
+  fs.writeFileSync(tpl('password-reset', 'body.html'), '{{misc.year}}');
+  assert.equal((await renderEmail(config, { typeId: 'account_reset_password_email', fixture: 'lists' })).html, '1999');
   fs.rmSync(listsFile);
 
   // create keeps local edits unless forced
@@ -321,6 +326,17 @@ try {
   assert.match(out, /Environment staging: store stagehash, global templates/);
   await run('env', 'use', 'default');
   assert.equal(puts.filter((p) => p.store === 'testhash').length, 1, 'the default store saw no extra writes');
+  // a wrong store hash: the answer is a web page, which is left out, and no next step is offered after a failure
+  out = await fails('env', 'add', 'ghost', '--store-hash', 'nosuchstore', '--token', 'tok');
+  assert.match(out, /test request failed:\nGET \/stores\/nosuchstore\/v3\/marketing\/email-templates failed with 404\. Check the store hash\.\n/);
+  assert.doesNotMatch(out, /<html|order ID|Switch to it with/);
+  // a store that never answers is given up on, where the command used to wait for minutes
+  const slow = await exec('node', [cli, 'env', 'add', 'slow', '--store-hash', 'slowhash', '--token', 'tok'], { cwd, env: { ...env, BC_API_TIMEOUT_MS: '300' }, timeout: 10000 }).catch((e) => e);
+  assert.equal(slow.code, 1);
+  assert.match(slow.stdout, /test request failed:\nNo answer from 127\.0\.0\.1:\d+ after 0\.3 seconds\. Check your internet connection and try again\./);
+  for (const name of ['ghost', 'slow']) fs.rmSync(path.join(ws, `.env.${name}`));
+  // an option's value may itself contain "="
+  assert.match(await fails('fixture', 'sku', '--name=a=b'), /"a=b" is not a usable name for preview data/);
 
   // a channel belongs to an environment: its own template folder and query parameter
   assert.match(await fails('create', '--all', '--channel', '12'), /--channel is not an option here\. A channel belongs to an environment/);
